@@ -111,6 +111,12 @@
 
     try { if (HK.UI && HK.UI.initLoader) HK.UI.initLoader(); } catch (e) {}
 
+    /* ---- texture atlases (packed into the single file, or assets/) ----- */
+    progress(2, '正在載入港灣貼圖…', 'LOADING HARBOUR ATLASES');
+    try {
+      if (HK.Textures && HK.Textures.preload) await HK.Textures.preload();
+    } catch (e) { console.error('textures', e); }
+
     /* ---- terrain ------------------------------------------------------- */
     progress(4, '正在重塑海岸線…', 'RESHAPING THE COASTLINE');
     await nextFrame();

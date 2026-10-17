@@ -21,6 +21,9 @@
     _uniforms.uTime.value += dt;
     var night = env && env.night != null ? env.night : (HK.app ? HK.app.state.night : 0);
     _uniforms.uNight.value = night;
+    var qn = (HK.app && HK.app.state && HK.app.state.quality) || 'high';
+    var qcfg = HK.QUALITY[qn];
+    if (qcfg && _uniforms.uFacadeScale) _uniforms.uFacadeScale.value = qcfg.facadeScale || 1;
     var tint = env && (env.horizonColor || env.skyHorizon);
     var zen = env && (env.zenithColor || env.skyZenith);
     if (zen && tint) {
@@ -91,6 +94,11 @@
     var RESERVED = HK.Terrain.FLAGS.RESERVED;
     var placed = 0, attempts = 0;
     var maxX = world.bounds.maxX, maxZ = world.bounds.maxZ;
+    var qname = (HK.app && HK.app.state && HK.app.state.quality) || 'high';
+    var qcfg = HK.QUALITY[qname] || HK.QUALITY.high;
+    var stepMul = qcfg.cityStep || 1;
+    var doFront = !!qcfg.waterfront;
+    var doPil = !!qcfg.pilasters;
 
     function idx(x, z) {
       var i = Math.floor(x - MINX), j = Math.floor(z - MINZ);
@@ -210,6 +218,20 @@
       var topY2 = y;
       var tw = topBox[0], td = topBox[1];
 
+      // harbour-facing fins so mid-distance towers read as ribbed glass, not boxes
+      var skyline = dist.id === 'central' || dist.id === 'admiralty' || dist.id === 'wanchai' || dist.id === 'tst' || dist.id === 'westkowloon' || dist.id === 'quarrybay';
+      if (doPil && skyline && Hh > 48 && w >= 7) {
+        var nzs = dist.side === 'hk' ? -1 : 1;
+        var fins = w > 12 ? 4 : 3;
+        for (var fi = 0; fi < fins; fi++) {
+          var fx = x + (fi - (fins - 1) / 2) * (w * 0.22);
+          var fz = z + nzs * (d * 0.5 + 0.2);
+          K.box(fx - 0.22, fz - 0.2, fx + 0.22, fz + 0.2, plinthTop + 1.4, plinthTop + Hh * 0.96, {
+            color: U.shadeRgb(wallCol, 1.08), style: F.PURE, collide: false, jitter: 0
+          });
+        }
+      }
+
       // crown / roof architecture
       var crownR = rng.next();
       if (Hh > 55 && crownR < 0.22) {
@@ -263,6 +285,10 @@
       placed++;
     }
 
+    /* shore shops claim the waterfront before the tower pass fills it */
+    var frontN = placeWaterfront();
+    placed += frontN;
+
     /* ----------------------------------------------------- scan districts */
     for (var di = 0; di < L.DISTRICTS.length; di++) {
       var dist = L.DISTRICTS[di];
@@ -271,6 +297,7 @@
       var rect = dist.rect;
       var step = dist.density > 0.9 ? 5 : (dist.density > 0.7 ? 6 : 8);
       if (allowTerrace) step = 11;
+      step = Math.max(4, Math.round(step * stepMul));
       var rng = new HK.Rng((U.hashStr(dist.id) ^ 0x5f3759df) >>> 0);
       var scale = 1.58 + (1 - dist.density) * 0.45;
       for (var gz = rect[1] + 2; gz < rect[3] - 4; gz += step) {
@@ -325,6 +352,7 @@
       if (dist2.density < 0.55) continue;
       var r2 = new HK.Rng((U.hashStr(dist2.id) ^ 0x9e3779b9) >>> 0);
       var step2 = dist2.density > 0.9 ? 4 : 5;
+      step2 = Math.max(3, Math.round(step2 * stepMul));
       for (var gz2 = rect2[1] + 2; gz2 < rect2[3] - 4; gz2 += step2) {
         for (var gx2 = rect2[0] + 2; gx2 < rect2[2] - 4; gx2 += step2) {
           var x2 = gx2 + r2.float(-1.5, 1.5), z2 = gz2 + r2.float(-1.5, 1.5);
@@ -353,7 +381,73 @@
       }
     }
     placed += lowPlaced;
-    HK.log('city: buildings', placed, '(low-rise', lowPlaced + ')', 'attempts', attempts);
+
+    function placeWaterfront() {
+    /* waterfront ribbon: small shop blocks along both shores */
+    var frontN = 0;
+    if (doFront && L.southShoreZ && L.northShoreZ) {
+      var fr = new HK.Rng(0xA11CE);
+      var RESERVE = HK.Terrain.FLAGS.RESERVED;
+      for (var sx = -1500; sx <= 1600; sx += 10) {
+        var shores = [
+          { shore: L.southShoreZ(sx), dir: 1, side: 'hk' },
+          { shore: L.northShoreZ(sx), dir: -1, side: 'kl' }
+        ];
+        for (var si = 0; si < shores.length; si++) {
+          var zHit = null;
+          for (var stepZ = 6; stepZ <= 70; stepZ += 3) {
+            var zz = shores[si].shore + shores[si].dir * stepZ;
+            var ntry = idx(sx, zz);
+            if (ntry < 0) continue;
+            if (typeArr[ntry] === T.PLOT && !(flagArr[ntry] & RESERVE) && !occ[ntry]) { zHit = zz; break; }
+          }
+          if (zHit == null) continue;
+          var sz = zHit;
+          var distF = null;
+          for (var di3 = 0; di3 < L.DISTRICTS.length; di3++) {
+            var dd = L.DISTRICTS[di3];
+            if (sx >= dd.rect[0] && sx <= dd.rect[2] && sz >= dd.rect[1] && sz <= dd.rect[3]) { distF = dd; break; }
+          }
+          if (!distF || distF.hill || distF.density < 0.55) continue;
+          if (!fr.chance(0.78)) continue;
+          var fw = 4, fd = 4, x0f = 0, z0f = 0, fitted = false;
+          var sizes = [6, 5, 4, 3];
+          for (var szi = 0; szi < sizes.length && !fitted; szi++) {
+            fw = fd = sizes[szi];
+            for (var nudge = 0; nudge <= 10 && !fitted; nudge += 2) {
+              var zTry = sz + shores[si].dir * nudge;
+              x0f = Math.round(sx - fw / 2);
+              z0f = Math.round(zTry - fd / 2);
+              if (footprintOK(x0f, z0f, fw, fd, false, minBox, maxBox)) { sz = zTry; fitted = true; }
+            }
+          }
+          if (!fitted) continue;
+          markOcc(x0f, z0f, fw, fd);
+          var fH = fr.int(5, Math.min(18, Math.max(8, distF.minH)));
+          var fSeed = fr.int(1, 99999);
+          var fCol = richColor(distF.colors[fr.int(0, distF.colors.length - 1)], fr);
+          var fStyle = fr.pick(distF.styles);
+          var fk = new HK.Kit(city, { style: fStyle, color: fCol, seed: fSeed });
+          var gy = Math.max(1, world.heightAt(sx, sz));
+          fk.boxC(sx, sz, fw, fd, gy - 0.6, gy + fH, { style: fStyle, color: fCol, seed: fSeed });
+          if (fr.chance(0.55)) {
+            fk.boxC(sx, sz, Math.max(3, fw - 1.4), Math.max(3, fd - 1.4), gy + fH, gy + fH + fr.float(1.4, 3.6), {
+              color: U.shadeRgb(fCol, 0.9), style: fStyle, seed: fSeed + 1
+            });
+          }
+          var nzF = shores[si].side === 'hk' ? -1 : 1;
+          fk.boxC(sx, sz + nzF * (fd / 2 + 0.12), fw * 0.9, 0.32, gy + 0.3, gy + Math.min(fH, 5.5), {
+            color: U.shadeRgb(fCol, 0.78), style: F.PURE, collide: false, jitter: 0
+          });
+          city.frontage.push({ x: sx, z: sz, w: fw, d: fd, base: gy, top: gy + fH, district: distF.id, neon: distF.neon, seed: fSeed, style: fStyle, h: fH });
+          if (distF.neon > 0.35) city.signs.push({ x: sx, z: sz, w: fw, d: fd, base: gy, top: gy + fH, district: distF.id, seed: fSeed, neon: distF.neon });
+          frontN++;
+        }
+      }
+    }
+    return frontN;
+    }
+    HK.log('city: buildings', placed, '(low-rise', lowPlaced + ', waterfront', frontN + ')', 'attempts', attempts, 'detail', qname);
     B.stats = { placed: placed, attempts: attempts, colliders: city.colliders.length };
   }
 

@@ -17,6 +17,7 @@
     this.colliders = [];   // {x0,z0,x1,z1,y0,y1,walk}
     this.frontage = [];    // building frontage hints for props (signs etc.)
     this.signs = [];       // sign requests for props
+    this.decals = [];      // textured accent quads (clock faces, …)
     this.beacons = [];     // blinking aircraft warning lights
     this.stats = { quads: 0, boxes: 0 };
   }
@@ -392,6 +393,12 @@
     return this;
   };
 
+  /* textured accent quad. uvs are in the landmark-accents atlas (v-up). */
+  Kit.prototype.decal = function (req) {
+    (this.b.decals = this.b.decals || []).push(req);
+    return this;
+  };
+
   /* register a collider not tied to a visual box (piers, terrain platforms) */
   Kit.prototype.collideBox = function (x0, z0, x1, z1, y0, y1, walk) {
     this.b.collider(x0, z0, x1, z1, y0, y1, walk);
@@ -403,6 +410,10 @@
 uniform float uNight;
 uniform float uTime;
 uniform vec3 uSkyTint;
+uniform sampler2D uFacadeMap;
+uniform sampler2D uFacadeNight;
+uniform float uAtlasOn;
+uniform float uFacadeScale;
 varying vec2 vFacadeUv;
 varying float vStyle;
 varying float vSeed;
@@ -446,6 +457,7 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
   }
   if (isBottom > 0.5) { albedo = baseCol * 0.4; rough = 0.95; return; }
 
+  uv /= clamp(uFacadeScale, 0.62, 1.25);
   float floorH = 1.9;
   float cellW = 1.05;
   float win = 0.0;
@@ -647,13 +659,37 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     emis += fWindowsLit(id, seed, 15.0) * win * lit * (0.45 + 1.0 * night) * glow;
   }
 
+  // baked atlas: mullions, spandrels, blinds. Vertex colour stays the material.
+  if (uAtlasOn > 0.5 && st < 15.5) {
+    float cols = 4.0;
+    float idx = clamp(floor(st + 0.5), 0.0, 15.0);
+    vec2 tile = vec2(mod(idx, cols), floor(idx / cols));
+    vec2 fuv = fract(uv / vec2(8.4, 7.2));
+    float inset = 12.0 / 512.0;
+    fuv = fuv * (1.0 - 2.0 * inset) + inset;
+    vec2 auv = (tile + fuv) / cols;
+    vec4 day = texture2D(uFacadeMap, auv);
+    vec3 mul = pow(max(day.rgb, vec3(0.001)), vec3(2.2));
+    float winMask = day.a;
+    vec3 nightC = pow(max(texture2D(uFacadeNight, auv).rgb, vec3(0.0)), vec3(2.2));
+    albedo = baseCol * mul * 1.12;
+    albedo = mix(albedo, albedo * 0.82 + uSkyTint * 0.20, winMask * 0.55 * (1.0 - night * 0.45));
+    rough = mix(0.78, 0.10, winMask);
+    metal = mix(0.08, 0.72, winMask * (1.0 - step(4.5, st) * 0.35));
+    emis = nightC * (0.20 + night * 1.55) * glow;
+    frame = baseCol;
+    glass = baseCol * 0.45 + uSkyTint * 0.2;
+  }
+
   // low-frequency floor rhythm survives at skyline distance
   float floorRhythm = step(0.5, fract(uv.y / (floorH * 5.0)));
   albedo *= 0.955 + 0.045 * floorRhythm;
 
   // screen-space distance fade: distant facades dissolve into their average
-  // tone instead of aliasing into black-and-white moiré at skyline distance
+  // tone instead of aliasing into black-and-white moiré at skyline distance.
+  // Mipmapped atlases already filter, so only a light dissolve remains.
   float winAA = 1.0 - smoothstep(0.22, 1.15, max(fwidth(uv.x), fwidth(uv.y)));
+  if (uAtlasOn > 0.5) winAA = mix(0.82, 1.0, winAA);
   vec3 facadeAvg = mix(frame, glass, 0.38);
   albedo = mix(facadeAvg, albedo, winAA);
   rough = mix(0.55, rough, winAA);
@@ -672,11 +708,24 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
 }
 `;
 
+  function fallbackTex() {
+    var data = new Uint8Array([255, 255, 255, 255]);
+    var t = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+    t.needsUpdate = true;
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearFilter;
+    t.generateMipmaps = false;
+    return t;
+  }
   function createFacadeMaterial() {
     var uniforms = {
       uNight: { value: 0 },
       uTime: { value: 0 },
-      uSkyTint: { value: new THREE.Color(0x9fc0d0) }
+      uSkyTint: { value: new THREE.Color(0x9fc0d0) },
+      uFacadeMap: { value: fallbackTex() },
+      uFacadeNight: { value: fallbackTex() },
+      uAtlasOn: { value: 0 },
+      uFacadeScale: { value: 1 }
     };
     var mat = new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -688,6 +737,10 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
       shader.uniforms.uNight = uniforms.uNight;
       shader.uniforms.uTime = uniforms.uTime;
       shader.uniforms.uSkyTint = uniforms.uSkyTint;
+      shader.uniforms.uFacadeMap = uniforms.uFacadeMap;
+      shader.uniforms.uFacadeNight = uniforms.uFacadeNight;
+      shader.uniforms.uAtlasOn = uniforms.uAtlasOn;
+      shader.uniforms.uFacadeScale = uniforms.uFacadeScale;
       shader.vertexShader =
         'attribute vec2 aUv;\nattribute float aStyle;\nattribute float aSeed;\nattribute float aGlow;\n' +
         'varying vec2 vFacadeUv;\nvarying float vStyle;\nvarying float vSeed;\nvarying float vGlow;\n' +
@@ -721,8 +774,9 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
         '#include <emissivemap_fragment>\ntotalEmissiveRadiance += facadeEmis;'
       );
     };
-    mat.customProgramCacheKey = function () { return 'hk-facade-v3'; };
+    mat.customProgramCacheKey = function () { return 'hk-facade-v4'; };
     mat.userData.uniforms = uniforms;
+    if (HK.Textures && HK.Textures.attachFacade) HK.Textures.attachFacade(uniforms);
     return mat;
   }
 

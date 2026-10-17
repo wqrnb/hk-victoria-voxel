@@ -123,6 +123,18 @@
     function tw(y) { return 34 + (21.5 - 34) * U.clamp((y - Y0) / (YTOP - Y0), 0, 1); }
     var KT = kit(city, F.GLASS_SILVER, '#a9c4d6', 213, 1, 0.012);
     KT.taper(X, Z, 34, 34, 21.5, 21.5, Y0, YTOP, 9, { style: F.GLASS_SILVER, color: '#a9c4d6', seed: 213, collide: true });
+    /* chamfered corner reveals — ICC reads as a faceted obelisk at mid distance */
+    var stepH0 = (YTOP - Y0) / 9;
+    for (var ch = 0; ch < 9; ch++) {
+      var cy0 = Y0 + stepH0 * ch, cy1 = cy0 + stepH0;
+      var chw = tw(cy0) / 2;
+      for (var cc2 = 0; cc2 < 4; cc2++) {
+        var csx = (cc2 < 2) ? -1 : 1, csz = (cc2 % 2 === 0) ? -1 : 1;
+        var inset = chw - Math.max(1.5, chw * 0.08);
+        KT.box(X + csx * inset - 0.38, Z + csz * inset - 0.38, X + csx * inset + 0.38, Z + csz * inset + 0.38,
+          cy0, cy1, { color: '#6e7e88', style: F.CURTAIN_DARK, collide: false, jitter: 0 });
+      }
+    }
     /* horizontal facade bands (the ICC reads as stacked silver bands) */
     for (var b = 1; b <= 8; b++) {
       var by = Y0 + (YTOP - Y0) * b / 9;
@@ -526,11 +538,11 @@
       var nz = f === 2 ? -1 : (f === 3 ? 1 : 0);
       var fx = X + nx * 5.75, fz = Z + nz * 5.75;
       if (nx !== 0) {
-        K.box(fx - 0.22, fz - 2.0, fx + 0.22, fz + 2.0, G + 13.1, G + 15.1, { color: '#26261f', style: F.PURE, collide: false, jitter: 0 });
-        K.box(fx - 0.12, fz - 1.2, fx + 0.15, fz + 1.2, G + 14.5, G + 14.72, { color: '#ffe9b0', style: F.LED, glow: 0.7, collide: false, jitter: 0 });
+        K.box(fx - 0.22, fz - 2.15, fx + 0.22, fz + 2.15, G + 12.9, G + 15.3, { color: '#26261f', style: F.PURE, collide: false, jitter: 0 });
+        K.decal({ x: fx + nx * 0.42, y: G + 14.15, z: fz, w: 3.35, h: 3.35, nx: nx, nz: 0, u0: 0.02, v0: 0.02, u1: 0.48, v1: 0.48 });
       } else {
-        K.box(fx - 2.0, fz - 0.22, fx + 2.0, fz + 0.22, G + 13.1, G + 15.1, { color: '#26261f', style: F.PURE, collide: false, jitter: 0 });
-        K.box(fx - 1.2, fz - 0.12, fx + 1.2, fz + 0.15, G + 14.5, G + 14.72, { color: '#ffe9b0', style: F.LED, glow: 0.7, collide: false, jitter: 0 });
+        K.box(fx - 2.15, fz - 0.22, fx + 2.15, fz + 0.22, G + 12.9, G + 15.3, { color: '#26261f', style: F.PURE, collide: false, jitter: 0 });
+        K.decal({ x: fx, y: G + 14.15, z: fz + nz * 0.42, w: 3.35, h: 3.35, nx: 0, nz: nz, u0: 0.02, v0: 0.02, u1: 0.48, v1: 0.48 });
       }
     }
     K.box(X - 6.1, Z - 6.1, X + 6.1, Z + 6.1, G + 15.7, G + 16.2, { color: '#efe9da', style: F.PURE, collide: false });
@@ -543,10 +555,10 @@
       else K.box(X + bx2 - 1.4, Z + bz2 - 0.15, X + bx2 + 1.4, Z + bz2 + 0.15, G + 16.5, G + 18.0, { color: '#23231d', style: F.PURE, collide: false, jitter: 0 });
     }
     K.box(X - 4.9, Z - 4.9, X + 4.9, Z + 4.9, G + 18.2, G + 18.7, { color: '#efe9da', style: F.PURE, collide: false });
-    /* copper drum + dome + finial */
-    K.cyl(X, Z, 3.5, G + 18.7, G + 19.9, 10, { color: '#d9d3c3', style: F.STONE, collide: false });
-    K.dome(X, Z, 3.9, G + 19.9, G + 21.6, 4, { color: '#5d7f72', style: F.METAL, collide: false });
-    K.spire(X, Z, 0.35, G + 21.6, G + 23.4, { color: '#8c9092', style: F.PURE, collide: false });
+    /* stone drum + copper pyramidal cap (the Kowloon station clock tower roof) */
+    K.cyl(X, Z, 3.4, G + 18.7, G + 19.5, 12, { color: '#e6e0d0', style: F.STONE, collide: false });
+    K.pyramid(X, Z, 8.4, 8.4, G + 19.3, G + 23.8, { roofColor: '#5f8674', style: F.METAL, collide: false });
+    K.spire(X, Z, 0.26, G + 23.8, G + 26.0, { color: '#c5a35a', style: F.PURE, collide: false });
     /* palms + lamps around the pool */
     palm(K, X - 11, Z + 7, G, 4.6, 823);
     palm(K, X + 11, Z + 7, G, 4.6, 824);

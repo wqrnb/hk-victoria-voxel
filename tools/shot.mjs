@@ -20,9 +20,15 @@ const timeoutMs = +(args.timeout || 120000);
 const readyExpr = args.ready || 'true';
 const waitMs = +(args.wait || 0);
 
-const CHROME = fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')
-  ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-  : 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const CHROME_CANDIDATES = [
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  '/usr/local/bin/google-chrome',
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser'
+];
+const CHROME = CHROME_CANDIDATES.find((p) => fs.existsSync(p)) || CHROME_CANDIDATES[0];
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'hkqa-'));
 const chrome = spawn(CHROME, [
   '--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--hide-scrollbars',

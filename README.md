@@ -5,10 +5,12 @@ A hand-crafted voxel digital twin of Hong Kong's Victoria Harbour: both shores,
 Central's iconic skyline, Kowloon's neon canyons, the Peak, the harbour itself,
 cinematic golden-hour lighting, living traffic and ferries, and a fully
 walkable first-person mode. Built with a bespoke voxel engine on top of
-Three.js r149 — no build step, no network, no external assets.
+Three.js r149 — no network at runtime.
 
 > **單一檔案 (Single file)**: `dist/VictoriaHarbour.html` — double click.
-> Works offline from `file://`. Everything (shaders, textures, signage, audio) is procedural.
+> Works offline from `file://`. Shaders, audio and the world stay in one file.
+> Facade, neon, foam and landmark atlases are baked under `assets/` and packed
+> into that file by `tools/build.mjs`.
 
 ---
 
@@ -17,6 +19,7 @@ Three.js r149 — no build step, no network, no external assets.
 | what | how |
 | --- | --- |
 | **Play the finished sandbox** | double-click `dist/VictoriaHarbour.html` (or run `start.bat`) |
+| Rebuild texture atlases | `python3 tools/bake-textures.py` (Pillow + WenQuanYi) |
 | Rebuild the single file | `node tools/build.mjs` |
 | Preview the source version | `start-server.bat` → http://127.0.0.1:8000/ |
 | Headless screenshot / QA | `node tools/shot.mjs --url "dist/VictoriaHarbour.html?qa=1&quality=medium&time=18.6" --out tmp/shot.png --w 1600 --h 900 --ready "window.__READY__"` |
@@ -56,7 +59,11 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
 
 ## World 世界
 
-- **Scale**: 4 km × 2 km of harbour and both shores, 1 voxel = 2 m, sea level y=0.
+- **Scale**: 4 km × 2 km of harbour and both shores, 1 world unit = 2 m, sea level y=0.
+  Victoria Peak terraces step at 2 m so the ridge reads cleaner. Street grids
+  pack tighter on 高 / 電影 (quality `cityStep`), and a waterfront infill pass
+  fills both shores with smaller shop blocks. Facade bays scale live with the
+  quality tier (`facadeScale`, about 0.74–1.05) without rebuilding the mesh.
 - **Geography**: real Victoria Harbour topology — Kowloon / Tsim Sha Tsui / Hung Hom Bay /
   Kai Tak runway spur / Kwun Tong on the north; Central / Admiralty / Wan Chai /
   Causeway Bay typhoon shelter / Quarry Bay / Victoria Peak and the southern ridges on the south.
@@ -87,7 +94,16 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
 - Zero dependencies. Classic `<script>` files, Three.js r149 vendored.
 - Custom voxel meshing: greedy-merged terrain top faces + merged wall runs; city
   buildings merged per 480-unit chunk; custom facade material with per-vertex
-  `aUv / aStyle / aSeed / aGlow` driving procedural windows and night lighting.
+  `aUv / aStyle / aSeed / aGlow`. When the atlases load, each of the 16 facade
+  styles samples `assets/facade-atlas.png` (albedo × window mask) and
+  `assets/facade-night.png` (emissive windows). Vertex colour still tints the
+  material, so brick stays brick and glass stays glass. If an atlas is missing
+  the original procedural windows remain.
+- **Texture pipeline**: `python3 tools/bake-textures.py` writes deterministic
+  PNGs into `assets/` (facades, neon signage, shore foam, ground grain, the
+  TST clock face). `node tools/build.mjs` inlines them as `window.HK_ASSETS`
+  data URIs. The dev server (`start-server.bat`) loads the same files from
+  `assets/` — nothing is fetched from the network.
 - HDR-ish post pipeline: linear scene render (MSAA half-float) → bright pass →
   dual-filter bloom → ACES + sRGB + grade. Renderer stays `NoToneMapping/LinearEncoding`.
 - Debug/QA URL parameters: `?qa=1&quality=low|medium|high|ultra&time=18.62&weather=clear|mist|rain&mode=orbit|fps|cinematic&poi=<id>&cam=x,y,z&look=x,y,z&shot=0..6`
@@ -99,6 +115,7 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
 index.html                  source shell (classic script order)
 css/style.css               full cinematic HUD / loader / intro / UI
 js/core.js                  namespace, math, noise, palette, batch, quality tiers
+js/textures.js              atlas loader (assets/ or packed HK_ASSETS)
 js/layout.js                geography: coasts, districts, roads, anchors, POIs, cinematic shots
 js/terrain.js               heightfield, land use, roads, greedy terrain mesh, shoreline mask
 js/landmarkkit.js           HK.CityBuilder + HK.Kit + facade material shader
@@ -114,8 +131,10 @@ js/controls.js              orbit / first-person collision / cinematic cameras
 js/ui.js                    loader, intro, HUD, panels, toasts, screenshots
 js/audio.js                 procedural WebAudio ambience
 js/main.js                  boot sequence + integration + render loop
-tools/build.mjs             single-file builder
+tools/bake-textures.py      deterministic atlas baker (facade, neon, foam, ground, clock)
+tools/build.mjs             single-file builder (packs assets/ into the HTML)
 tools/shot.mjs              headless Chrome screenshot/QA driver
+assets/                     baked texture atlases (source of the packed build)
 tools/audit-layout.mjs      coastline/road/landmark sanity audit
 qa/                         standalone QA scenes for terrain/city/atmosphere/UI/life
 dist/VictoriaHarbour.html   final self-contained deliverable

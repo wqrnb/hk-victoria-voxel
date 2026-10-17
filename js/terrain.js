@@ -684,7 +684,16 @@
         '#include <begin_vertex>',
         '#include <begin_vertex>\nvTerrPos = (modelMatrix * vec4(transformed, 1.0)).xyz;'
       );
-      shader.fragmentShader = 'varying vec3 vTerrPos;\n' + shader.fragmentShader;
+      var groundTex = (HK.Textures && HK.Textures.ground) ? HK.Textures.ground : null;
+      if (!groundTex) {
+        var blank = new Uint8Array([255, 255, 255, 255]);
+        groundTex = new THREE.DataTexture(blank, 1, 1, THREE.RGBAFormat);
+        groundTex.needsUpdate = true;
+        groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
+      }
+      shader.uniforms.uGroundMap = { value: groundTex };
+      shader.uniforms.uGroundOn = { value: (HK.Textures && HK.Textures.ground) ? 1 : 0 };
+      shader.fragmentShader = 'varying vec3 vTerrPos;\nuniform sampler2D uGroundMap;\nuniform float uGroundOn;\n' + shader.fragmentShader;
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <color_fragment>',
         '#include <color_fragment>\n' +
@@ -696,10 +705,14 @@
         'vec2 seamBig = abs(fract(tp * 0.125) - 0.5);\n' +
         'vec2 seamSmall = abs(fract(tp * 0.5) - 0.5);\n' +
         'float sl = smoothstep(0.43, 0.5, max(seamBig.x, seamBig.y)) * 0.055 + smoothstep(0.45, 0.5, max(seamSmall.x, seamSmall.y)) * 0.035;\n' +
-        'diffuseColor.rgb *= 1.0 - sl * urban;\n'
+        'diffuseColor.rgb *= 1.0 - sl * urban;\n' +
+        'if (uGroundOn > 0.5 && vTerrPos.y < 16.0) {\n' +
+        '  vec3 gtex = pow(max(texture2D(uGroundMap, tp * 0.25).rgb, vec3(0.001)), vec3(2.2));\n' +
+        '  diffuseColor.rgb *= mix(vec3(1.0), gtex / 0.86, 0.5 * urban);\n' +
+        '}\n'
       );
     };
-    mat.customProgramCacheKey = function () { return 'terrain-v2'; };
+    mat.customProgramCacheKey = function () { return 'terrain-v3'; };
     var mesh = new THREE.Mesh(geo.geometry, mat);
     mesh.name = 'terrain';
     mesh.receiveShadow = true;

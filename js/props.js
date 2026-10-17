@@ -114,6 +114,7 @@
       s.billboards[i].material.uniforms.uTime.value = nightUniforms.uTime.value;
     }
     if (s.signMat) s.signMat.uniforms.uNight.value = night;
+    if (s.decalMat) s.decalMat.uniforms.uNight.value = night;
   };
 
   /* --------------------------------------------------------- neon sign atlas */
@@ -126,6 +127,21 @@
   var SIGN_EN = ['HOTEL', 'GOLD', 'PHARMACY', 'NOODLES', 'BAR', 'CLUB', 'MARKET', 'TEA', 'JEWEL', 'SAUNA'];
   function buildSignAtlas() {
     var cells = 8, cell = 256, size = cells * cell;
+    if (HK.Textures && HK.Textures.neon && HK.Textures.neon.image) {
+      var tilesB = [];
+      for (var cyB = 0; cyB < cells; cyB++) {
+        for (var cxB = 0; cxB < cells; cxB++) {
+          var verticalB = ((cxB * 7 + cyB * 5) % 3) !== 0;
+          tilesB.push({
+            u0: cxB / cells, v0: 1 - (cyB + 1) / cells,
+            u1: (cxB + 1) / cells, v1: 1 - cyB / cells,
+            vertical: verticalB
+          });
+        }
+      }
+      HK.Textures.neon.anisotropy = 8;
+      return { texture: HK.Textures.neon, tiles: tilesB };
+    }
     var canvas = U.makeCanvas(size, size);
     var ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, size, size);
@@ -777,6 +793,60 @@
     return n;
   }
 
+  /* ------------------------------------------------- landmark accent decals */
+  function buildDecals(world, group) {
+    var list = world.city && world.city.decals;
+    if (!list || !list.length || !HK.Textures || !HK.Textures.accent) return 0;
+    var pos = [], uv = [], idx = [], v = 0;
+    for (var i = 0; i < list.length; i++) {
+      var d = list[i];
+      var nx = d.nx || 0, nz = d.nz || 0;
+      if (!nx && !nz) nz = 1;
+      var tx = nz, tz = -nx;
+      var hw = (d.w || 2) / 2, hh = (d.h || 2) / 2;
+      var cx = d.x, cy = d.y, cz = d.z;
+      var corners = [
+        [cx - tx * hw, cy - hh, cz - tz * hw],
+        [cx + tx * hw, cy - hh, cz + tz * hw],
+        [cx + tx * hw, cy + hh, cz + tz * hw],
+        [cx - tx * hw, cy + hh, cz - tz * hw]
+      ];
+      var u0 = d.u0 || 0, v0 = d.v0 || 0, u1 = d.u1 == null ? 1 : d.u1, v1 = d.v1 == null ? 1 : d.v1;
+      var uvs = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+      for (var k = 0; k < 4; k++) {
+        pos.push(corners[k][0], corners[k][1], corners[k][2]);
+        uv.push(uvs[k][0], uvs[k][1]);
+      }
+      idx.push(v, v + 1, v + 2, v, v + 2, v + 3);
+      v += 4;
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(new THREE.Uint32BufferAttribute(idx, 1));
+    geo.computeBoundingSphere();
+    var mat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: HK.Textures.accent }, uNight: { value: 0 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D map; uniform float uNight; varying vec2 vUv;',
+        'void main(){',
+        '  vec4 t = texture2D(map, vUv);',
+        '  if (t.a < 0.45) discard;',
+        '  vec3 c = pow(max(t.rgb, vec3(0.0)), vec3(2.2));',
+        '  c *= 0.92 + uNight * 0.45;',
+        '  gl_FragColor = vec4(c, 1.0);',
+        '}'
+      ].join('\n')
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.name = 'landmarkDecals';
+    mesh.frustumCulled = true;
+    group.add(mesh);
+    B.state.decalMat = mat;
+    return list.length;
+  }
+
   /* ---------------------------------------------------------------- build */
   B.build = function (world, layout, opts) {
     opts = opts || {};
@@ -794,6 +864,7 @@
     var railCount = skipStreet ? 0 : buildRailings(world, cbMatte);
     var treeCount = buildTrees(world, layout, quality, group);
     var signCount = buildSigns(world, group);
+    var decalCount = buildDecals(world, group);
     var boardCount = buildBillboards(world, group);
     buildBruceLee(world, cbMatte);
     buildLighthouse(world, cbMatte, cbGlow);
@@ -817,7 +888,7 @@
     B.state.lampMat = glowMat;
     B.group = group;
     B.stats = {
-      lamps: lampCount, railings: railCount, trees: treeCount, signs: signCount,
+      lamps: lampCount, railings: railCount, trees: treeCount, signs: signCount, decals: decalCount,
       billboards: boardCount, beacons: beaconCount, decks: deck, quads: cbMatte.v / 4 + cbGlow.v / 4
     };
     HK.log('props:', JSON.stringify(B.stats));

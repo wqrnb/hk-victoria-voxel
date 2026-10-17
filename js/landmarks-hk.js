@@ -48,16 +48,29 @@
     var k2 = K(city, F.GLASS_SILVER, '#b4c4cb', 1103);
     k2.boxC(cx, cz, 38, 38, g - 1.2, g + 7, { style: F.GLASS_SILVER, color: '#c3ccce', roofColor: '#777f7e' });
     k2.boxC(cx, cz, 34, 34, g + 7, g + 11, { style: F.BANDED, color: '#c7cfd0', roofColor: '#737a79' });
-    var y = g + 11, H = 207 - 11, W0 = 29, W1 = 21;
+    var y = g + 11, H = 207 - 11, W0 = 30, W1 = 25.5;
     for (var s = 0; s < 12; s++) {
       var a0 = s / 12, a1 = (s + 1) / 12;
       var w2 = U.lerp(W0, W1, a0);
-      k2.boxC(cx, cz, w2, w2, y + H * a0, y + H * a1 + 0.03, {
+      var yA = y + H * a0, yB = y + H * a1;
+      k2.boxC(cx, cz, w2, w2, yA, yB + 0.03, {
         style: F.GLASS_SILVER,
         color: shade('#b4c4cb', 0.93 + (s % 3) * 0.025),
         roofColor: '#7c8484', seed: 1103 + s
       });
+      // floor-plate lips and re-entrant corners — Two IFC reads as a notched prism, not a taper
+      k2.boxC(cx, cz, w2 + 0.5, w2 + 0.5, yB - 0.22, yB + 0.1, { style: F.PURE, color: '#e7eef0', collide: false, jitter: 0 });
+      var notch = Math.max(1.45, w2 * 0.075);
+      for (var nc = 0; nc < 4; nc++) {
+        var nsx = (nc % 2 === 0 ? -1 : 1), nsz = (nc < 2 ? -1 : 1);
+        k2.boxC(cx + nsx * (w2 / 2 - notch * 0.32), cz + nsz * (w2 / 2 - notch * 0.32), notch, notch, yA, yB, {
+          style: F.CURTAIN_DARK, color: '#667478', collide: false, jitter: 0
+        });
+      }
     }
+    // skybridge between One IFC and Two IFC
+    k2.beam([-252, g + 36, 404], [cx, g + 36, cz], 2.6, 1.5, { color: '#d5e0e2', style: F.GLASS_SILVER, collide: false });
+    k2.beam([-252, g + 38.2, 404], [cx, g + 38.2, cz], 2.8, 0.35, { color: '#eef3f4', style: F.PURE, collide: false });
     var top = y + H;
     // crown: the distinctive IFC notched crown
     k2.boxC(cx, cz, 21, 21, top, top + 6, { style: F.GLASS_SILVER, color: '#dbe4e6', roofColor: '#5a6061' });
@@ -105,12 +118,16 @@
       var nx = mid[0] - cx, nz = mid[1] - cz;
       var nl = Math.sqrt(nx * nx + nz * nz) || 1; nx /= nl; nz /= nl;
       var A = [cx + nx * 0.6, g + 6, cz + nz * 0.6];
-      var B = [cx + nx * 0.6, g + tr.h, cz + nz * 0.6];
       var offx = (facePts[1][0] - facePts[0][0]) / 2, offz = (facePts[1][1] - facePts[0][1]) / 2;
-      kk.brace([A[0] - offx * 0.92, A[1], A[2] - offz * 0.92], [A[0] + offx * 0.92, A[1] + (B[1] - A[1]) * 0.98, A[2] + offz * 0.92], 2.1, [nx, 0, nz], { color: '#f2ecdc', style: F.PURE });
-      kk.brace([A[0] + offx * 0.92, A[1], A[2] + offz * 0.92], [A[0] - offx * 0.92, A[1] + (B[1] - A[1]) * 0.98, A[2] - offz * 0.92], 2.1, [nx, 0, nz], { color: '#f2ecdc', style: F.PURE });
-      // horizontal belt at 2/3 height
-      kk.boxC(cx + nx * 0.8, cz + nz * 0.8, Math.abs(offx) * 2.04, 1.6, g + tr.h * 0.62, g + tr.h * 0.62 + 1.7, { color: '#f2ecdc', style: F.PURE, collide: false });
+      // stacked diamonds — the diagrid has to read at harbour distance, not as one giant X
+      var segN = 5;
+      for (var sg = 0; sg < segN; sg++) {
+        var yA = g + 8 + (tr.h - 10) * sg / segN;
+        var yB = g + 8 + (tr.h - 10) * (sg + 1) / segN;
+        kk.brace([A[0] - offx * 0.9, yA, A[2] - offz * 0.9], [A[0] + offx * 0.9, yB, A[2] + offz * 0.9], 1.25, [nx, 0, nz], { color: '#f4efe2', style: F.PURE });
+        kk.brace([A[0] + offx * 0.9, yA, A[2] + offz * 0.9], [A[0] - offx * 0.9, yB, A[2] - offz * 0.9], 1.25, [nx, 0, nz], { color: '#f4efe2', style: F.PURE });
+        kk.boxC(cx + nx * 0.95, cz + nz * 0.95, Math.abs(offx) * 1.92, 1.05, yA - 0.28, yA + 0.45, { color: '#f7f2e6', style: F.PURE, collide: false });
+      }
     }
     // corner columns + masts
     for (var c = 0; c < 4; c++) {
@@ -156,6 +173,14 @@
     for (var b = 0; b < 3; b++) {
       k.beam([cx - 20, g + 30 + b * 20, cz + 13], [cx + 20, g + 30 + b * 20, cz + 13], 1.4, 1.0, { color: '#b9bfc0', style: F.PURE, collide: false });
     }
+    // stacked harbour trusses — the HSBC elevation is a Meccano frame
+    for (var tb = 0; tb < 5; tb++) {
+      var ty = g + 16 + tb * 15;
+      k.beam([cx - 22, ty, cz + 13.5], [cx + 22, ty, cz + 13.5], 1.2, 1.45, { color: '#e7ebe9', style: F.PURE, collide: false });
+      k.beam([cx - 22, ty + 3.4, cz + 13.3], [cx + 22, ty, cz + 13.3], 0.65, 0.65, { color: '#d5dbda', style: F.PURE, collide: false });
+    }
+    k.boxC(cx - 16.5, cz + 13.8, 1.25, 1.25, g + 6.5, g + 100, { color: '#f2f4f3', style: F.PURE, collide: false });
+    k.boxC(cx + 16.5, cz + 13.8, 1.25, 1.25, g + 6.5, g + 104, { color: '#f2f4f3', style: F.PURE, collide: false });
     k.beacon(cx - 14, g + 6.5 + 72 + 4, cz);
     k.beacon(cx, g + 6.5 + 92 + 4, cz);
     k.beacon(cx + 14, g + 6.5 + 76 + 4, cz);
@@ -525,25 +550,21 @@
     var k = K(city, F.PURE, '#e3e3dc', 3101);
     // lower station terraces
     k.boxC(cx, cz + 12, 34, 30, g - 1.5, g + 7, { style: F.STONE, color: '#c9c5b9', roofColor: '#8d897e' });
-    // wok body: inverted frustum flaring at the top
+    // neck, then the anvil / wok disc — the Peak Tower silhouette from the harbour
     var base = g + 7;
-    k.cyl(cx, cz, 12, base, base + 8, 20, { style: F.PURE, color: '#d7d8d2', roofColor: '#8e908a' });
-    for (var s = 0; s < 6; s++) {
-      var r0 = U.lerp(12, 24, s / 6), r1 = U.lerp(12, 24, (s + 1) / 6);
-      k.cyl(cx, cz, (r0 + r1) / 2, base + 8 + s * 1.4, base + 8 + (s + 1) * 1.4, 22, { style: F.PURE, color: s % 2 ? '#e2e2db' : '#d3d4cd', roofColor: '#8e908a', collide: false });
-    }
-    k.cyl(cx, cz, 24, base + 16.4, base + 19.6, 24, { style: F.GLASS_SILVER, color: '#a8b4b8', roofColor: '#5f6668' });
-    k.cyl(cx, cz, 25.8, base + 18.8, base + 19.8, 24, { style: F.LED, color: '#eaf6ff', glow: 2.4, collide: false });
-    k.cyl(cx, cz, 25.5, base + 19.6, base + 21.2, 24, { style: F.PURE, color: '#e8e8e1', roofColor: '#a8a89f', collide: false });
-    // twin peak towers above
-    k.boxC(cx - 5, cz, 6, 6, base + 21.2, base + 33, { style: F.GLASS_SILVER, color: '#bcc6c8' });
-    k.boxC(cx + 5, cz, 6, 6, base + 21.2, base + 29, { style: F.GLASS_SILVER, color: '#bcc6c8' });
-    k.spire(cx, cz, 0.5, base + 33, base + 44, { color: '#dde0db', style: F.PURE, collide: false });
-    k.beacon(cx, base + 44, cz);
-    // viewing platform rails
-    for (var i = 0; i < 20; i++) {
-      var ang = i / 20 * Math.PI * 2;
-      k.boxC(cx + Math.cos(ang) * 25, cz + Math.sin(ang) * 25, 0.35, 0.35, base + 19.6, base + 21, { color: '#cfd2cc', style: F.PURE, collide: false });
+    k.cyl(cx, cz, 8.2, base, base + 7.2, 18, { style: F.PURE, color: '#d7d8d2', roofColor: '#8e908a' });
+    k.cyl(cx, cz, 11.5, base + 7.2, base + 8.8, 20, { style: F.PURE, color: '#e4e4dc', collide: false });
+    k.cyl(cx, cz, 17, base + 8.8, base + 10.2, 22, { style: F.PURE, color: '#ecece4', collide: false });
+    k.cyl(cx, cz, 23, base + 10.2, base + 12.0, 26, { style: F.GLASS_SILVER, color: '#b7c4c8', collide: false });
+    k.cyl(cx, cz, 27.2, base + 12.0, base + 16.6, 28, { style: F.GLASS_SILVER, color: '#c9d4d6', roofColor: '#6a7274' });
+    k.cyl(cx, cz, 28.0, base + 16.2, base + 17.3, 28, { style: F.LED, color: '#eaf6ff', glow: 2.3, collide: false });
+    k.cyl(cx, cz, 24.5, base + 17.3, base + 18.8, 24, { style: F.PURE, color: '#f3f3eb', roofColor: '#b0b0a6', collide: false });
+    k.spire(cx, cz, 0.42, base + 18.8, base + 30, { color: '#e4e6e0', style: F.PURE, collide: false });
+    k.beacon(cx, base + 30, cz);
+    // viewing platform rails around the disc
+    for (var i = 0; i < 24; i++) {
+      var ang = i / 24 * Math.PI * 2;
+      k.boxC(cx + Math.cos(ang) * 27.4, cz + Math.sin(ang) * 27.4, 0.32, 0.32, base + 16.6, base + 18.2, { color: '#d5d8d2', style: F.PURE, collide: false });
     }
     // Peak Tram upper terminus
     k.boxC(cx + 20, cz + 20, 18, 22, g - 1.4, g + 9, { style: F.PURE, color: '#d8d4c8', roofColor: '#6f6b60' });

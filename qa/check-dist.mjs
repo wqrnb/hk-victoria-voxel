@@ -18,7 +18,7 @@ const css = fs.readFileSync('css/style.css', 'utf8');
 const cssOk = h.includes(css.trim());
 console.log((cssOk ? 'IN    ' : 'STALE ') + 'css/style.css'.padEnd(24) + ' srcBytes=' + Buffer.byteLength(css));
 
-const files = ['vendor/three.min.js', 'js/core.js', 'js/layout.js', 'js/terrain.js', 'js/buildings.js', 'js/landmarkkit.js', 'js/landmarks-hk.js', 'js/landmarks-kl.js', 'js/props.js', 'js/sky.js', 'js/water.js', 'js/post.js', 'js/life.js', 'js/controls.js', 'js/ui.js', 'js/audio.js', 'js/main.js'];
+const files = ['vendor/three.min.js', 'js/core.js', 'js/textures.js', 'js/layout.js', 'js/terrain.js', 'js/buildings.js', 'js/landmarkkit.js', 'js/landmarks-hk.js', 'js/landmarks-kl.js', 'js/props.js', 'js/sky.js', 'js/water.js', 'js/post.js', 'js/life.js', 'js/controls.js', 'js/ui.js', 'js/audio.js', 'js/main.js'];
 let stale = 0;
 for (const f of files) {
   const marker = '/* ==== ' + f + ' ==== */\n';

@@ -8,7 +8,7 @@
   'use strict';
   var HK = window.HK = window.HK || {};
 
-  HK.VERSION = '1.0.0';
+  HK.VERSION = '1.1.0';
   HK.VOX = 2;                     // metres per unit
   HK.WORLD = { minX: -1500, maxX: 1500, minZ: -1000, maxZ: 1000, sea: 0, maxY: 320 };
   HK.SEA = 0;
@@ -17,10 +17,13 @@
   /* ---------------------------------------------------------------- quality */
   HK.QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
   HK.QUALITY = {
-    low:    { name: '低',   pixelRatio: 1.0,  msaa: 0, bloomScale: 0.5, bloomMips: 4, shadowMap: 1024, shadows: true,  trees: 3800,  traffic: 110, people: 120, aa: false, grain: false, waterSeg: 0,  cloudDetail: 2 },
-    medium: { name: '中',   pixelRatio: 1.35, msaa: 2, bloomScale: 0.5, bloomMips: 5, shadowMap: 2048, shadows: true,  trees: 8000,  traffic: 220, people: 260, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 3 },
-    high:   { name: '高',   pixelRatio: 1.75, msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 14000, traffic: 340, people: 400, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 4 },
-    ultra:  { name: '電影', pixelRatio: 2.0,  msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 20000, traffic: 460, people: 560, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 5 }
+    /* cityStep < 1 packs the street grid tighter. facadeScale < 1 draws finer
+       bays on the atlas (live, no rebuild). pilasters / waterfront add
+       skyline fins and a shore infill pass; they are chosen at boot. */
+    low:    { name: '低',   pixelRatio: 1.0,  msaa: 0, bloomScale: 0.5, bloomMips: 4, shadowMap: 1024, shadows: true,  trees: 3800,  traffic: 110, people: 120, aa: false, grain: false, waterSeg: 0,  cloudDetail: 2, cityStep: 1.16, facadeScale: 1.05, pilasters: 0, waterfront: 0 },
+    medium: { name: '中',   pixelRatio: 1.35, msaa: 2, bloomScale: 0.5, bloomMips: 5, shadowMap: 2048, shadows: true,  trees: 8000,  traffic: 220, people: 260, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 3, cityStep: 1.0,  facadeScale: 0.94, pilasters: 0, waterfront: 1 },
+    high:   { name: '高',   pixelRatio: 1.75, msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 14000, traffic: 340, people: 400, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 4, cityStep: 0.84, facadeScale: 0.84, pilasters: 1, waterfront: 1 },
+    ultra:  { name: '電影', pixelRatio: 2.0,  msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 20000, traffic: 460, people: 560, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 5, cityStep: 0.74, facadeScale: 0.74, pilasters: 1, waterfront: 1 }
   };
 
   HK.DEFAULT_STATE = {

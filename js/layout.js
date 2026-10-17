@@ -215,7 +215,10 @@
     if (L.isWater(x, z)) return -1;
     var h = L.baseHeight(x, z);
     if (h <= 0) return 0;
-    var step = h > 190 ? 4 : h > 100 ? 3 : h > 26 ? 2 : 1;
+    /* Victoria Peak keeps 2 m terraces so the ridge silhouette stays fine.
+       The outer ridges stay coarser so the heightfield does not explode. */
+    var peak = z > 500 && x > -780 && x < 620;
+    var step = h > 210 ? (peak ? 2 : 3) : h > 110 ? 2 : (h > 28 ? (peak ? 1 : 2) : 1);
     return Math.max(1, Math.round(h / step) * step);
   };
 
