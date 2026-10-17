@@ -67,6 +67,11 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
 - **Geography**: real Victoria Harbour topology — Kowloon / Tsim Sha Tsui / Hung Hom Bay /
   Kai Tak runway spur / Kwun Tong on the north; Central / Admiralty / Wan Chai /
   Causeway Bay typhoon shelter / Quarry Bay / Victoria Peak and the southern ridges on the south.
+- **Real blocks**: about 1,400 OpenStreetMap building footprints
+  (Central, Admiralty, Wan Chai, Causeway Bay, Tsim Sha Tsui, West Kowloon,
+  Hung Hom) are extruded on the high and cinema tiers, so the shore is the
+  real plan rather than random slabs. Hand-authored icons keep their own
+  meshes and sit on the same sites. © OpenStreetMap contributors, ODbL.
 - **Architecture**: 4,000+ procedural voxel buildings with a custom facade shader
   (per-style windows, mullions, spandrels, shopfronts, rooftop clutter, LED media walls)
   plus 50+ hand-authored landmarks:
@@ -99,11 +104,19 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
   `assets/facade-night.png` (emissive windows). Vertex colour still tints the
   material, so brick stays brick and glass stays glass. If an atlas is missing
   the original procedural windows remain.
+- **Scale**: 1 world unit = 2 m. High and cinema snap footprint massing,
+  floor belts and harbour fins to 0.5 unit (1 m). Lower tiers keep a coarser
+  street grid and, on low, skip the footprint pass.
+- **Footprints**: `python3 tools/fetch-footprints.py` reads OpenStreetMap
+  (ODbL) through the public map API, fits each shore onto this map, and
+  writes `js/footprints.js`. Heights use the OSM `height` / `building:levels`
+  tags when they exist. The runtime build does not call the network.
 - **Texture pipeline**: `python3 tools/bake-textures.py` writes deterministic
   PNGs into `assets/` (facades, neon signage, shore foam, ground grain, the
-  TST clock face). `node tools/build.mjs` inlines them as `window.HK_ASSETS`
-  data URIs. The dev server (`start-server.bat`) loads the same files from
-  `assets/` — nothing is fetched from the network.
+  TST clock face). Glass, bronze, stone and neon tiles are graded from the
+  studies in `tools/gen-facades/`. `node tools/build.mjs` inlines them as
+  `window.HK_ASSETS` data URIs. The dev server (`start-server.bat`) loads the
+  same files from `assets/` — nothing is fetched from the network.
 - HDR-ish post pipeline: linear scene render (MSAA half-float) → bright pass →
   dual-filter bloom → ACES + sRGB + grade. Renderer stays `NoToneMapping/LinearEncoding`.
 - Debug/QA URL parameters: `?qa=1&quality=low|medium|high|ultra&time=18.62&weather=clear|mist|rain&mode=orbit|fps|cinematic&poi=<id>&cam=x,y,z&look=x,y,z&shot=0..6`
@@ -117,9 +130,10 @@ css/style.css               full cinematic HUD / loader / intro / UI
 js/core.js                  namespace, math, noise, palette, batch, quality tiers
 js/textures.js              atlas loader (assets/ or packed HK_ASSETS)
 js/layout.js                geography: coasts, districts, roads, anchors, POIs, cinematic shots
+js/footprints.js            OpenStreetMap building footprints (ODbL), fitted to the map
 js/terrain.js               heightfield, land use, roads, greedy terrain mesh, shoreline mask
 js/landmarkkit.js           HK.CityBuilder + HK.Kit + facade material shader
-js/buildings.js             procedural city generator
+js/buildings.js             procedural city + OSM footprint extrusion
 js/landmarks-hk.js          hand-built Hong Kong Island landmarks
 js/landmarks-kl.js          hand-built Kowloon landmarks
 js/props.js                 lamps, trees, neon atlas, billboards, Peak Tram, street props
@@ -132,6 +146,8 @@ js/ui.js                    loader, intro, HUD, panels, toasts, screenshots
 js/audio.js                 procedural WebAudio ambience
 js/main.js                  boot sequence + integration + render loop
 tools/bake-textures.py      deterministic atlas baker (facade, neon, foam, ground, clock)
+tools/fetch-footprints.py   OSM footprint download + shore fit → js/footprints.js
+tools/gen-facades/          generated facade studies used to grade the atlas
 tools/build.mjs             single-file builder (packs assets/ into the HTML)
 tools/shot.mjs              headless Chrome screenshot/QA driver
 assets/                     baked texture atlases (source of the packed build)

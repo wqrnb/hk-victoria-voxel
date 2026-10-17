@@ -301,14 +301,14 @@
   /* ------------------------------------------------------------ landmark anchors */
   L.LANDMARKS = {
     // Hong Kong Island
-    ifc2: { x: -318, z: 352, w: 30, d: 30, h: 207, name: '國際金融中心二期', en: 'TWO IFC' },
+    ifc2: { x: -204, z: 404, w: 30, d: 30, h: 207, name: '國際金融中心二期', en: 'TWO IFC' },
     ifc1: { x: -252, z: 404, w: 24, d: 24, h: 105, name: '國際金融中心一期', en: 'ONE IFC' },
-    ifcMall: { x: -292, z: 386, w: 90, d: 56, h: 12, name: '國際金融中心商場', en: 'IFC MALL' },
+    ifcMall: { x: -228, z: 378, w: 108, d: 64, h: 12, name: '國際金融中心商場', en: 'IFC MALL' },
     boc: { x: -28, z: 408, w: 34, d: 34, h: 184, name: '中銀大廈', en: 'BANK OF CHINA TOWER' },
     hsbc: { x: -120, z: 424, w: 44, d: 32, h: 92, name: '滙豐總行大廈', en: 'HSBC MAIN BUILDING' },
-    cheungkong: { x: -62, z: 468, w: 26, d: 26, h: 142, name: '長江集團中心', en: 'CHEUNG KONG CENTER' },
+    cheungkong: { x: -68, z: 431, w: 26, d: 26, h: 142, name: '長江集團中心', en: 'CHEUNG KONG CENTER' },
     jardine: { x: -222, z: 442, w: 26, d: 24, h: 90, name: '怡和大廈', en: 'JARDINE HOUSE' },
-    center: { x: -92, z: 512, w: 28, d: 28, h: 173, name: '中環中心', en: 'THE CENTER' },
+    center: { x: -318, z: 424, w: 28, d: 28, h: 173, name: '中環中心', en: 'THE CENTER' },
     exchange: { x: -190, z: 430, w: 40, d: 28, h: 95, name: '交易廣場', en: 'EXCHANGE SQUARE' },
     cityhall: { x: -152, z: 338, w: 38, d: 22, h: 13, name: '香港大會堂', en: 'CITY HALL' },
     cenotaph: { x: -162, z: 372, w: 12, d: 8, h: 7, name: '和平紀念碑', en: 'CENOTAPH' },
@@ -562,7 +562,7 @@
     },
     {
       id: 'walk-central', name: '中環街頭漫遊', en: 'WALK CENTRAL STREETS', district: '中環 · CENTRAL', kind: 'walk',
-      spawn: { x: -260, z: 372, yaw: 2.45, pitch: -0.02 }, blurb: '在摩天樓群與老街道之間穿行，感受城市尺度。',
+      spawn: { x: -150, z: 500, yaw: 2.45, pitch: -0.02 }, blurb: '在摩天樓群與老街道之間穿行，感受城市尺度。',
       tags: ['walk', 'street']
     },
     {

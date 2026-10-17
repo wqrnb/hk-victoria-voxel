@@ -150,6 +150,134 @@
       }
     }
 
+    /* Real OSM footprints may share a party wall, and they may sit on the
+       artistic road grid. Water, rock and an existing volume still reject. */
+    var LAND_OK = {};
+    LAND_OK[T.PLOT] = 1; LAND_OK[T.ROAD] = 1; LAND_OK[T.ROAD_MAIN] = 1; LAND_OK[T.ROAD_MARK] = 1;
+    LAND_OK[T.SIDEWALK] = 1; LAND_OK[T.PLAZA] = 1; LAND_OK[T.PROMENADE] = 1;
+    LAND_OK[T.PARK] = 1; LAND_OK[T.LAWN] = 1; LAND_OK[T.TERRACE] = 1;
+    function measuredOK(x0, z0, w, d) {
+      if (w < 2.5 || d < 2.5) return false;
+      if (x0 < MINX + 2 || z0 < MINZ + 2 || x0 + w > maxX - 2 || z0 + d > maxZ - 2) return false;
+      var lo = 999, hi = -1, step = (w * d > 140) ? 2 : 1;
+      for (var z = z0; z <= z0 + d; z += step) {
+        for (var x = x0; x <= x0 + w; x += step) {
+          var i = Math.floor(x - MINX), j = Math.floor(z - MINZ);
+          if (i < 1 || i >= W - 1 || j < 1 || j >= H - 1) return false;
+          var n = j * W + i;
+          if (!LAND_OK[typeArr[n]]) return false;
+          if (occ[n]) return false;
+          var hh = heightArr[n];
+          if (hh < lo) lo = hh;
+          if (hh > hi) hi = hh;
+          if (hi - lo > 10) return false;
+        }
+      }
+      minBox.v = lo; maxBox.v = hi;
+      return true;
+    }
+    function districtAt(x, z) {
+      for (var i = 0; i < L.DISTRICTS.length; i++) {
+        var d = L.DISTRICTS[i];
+        var r = d.rect;
+        if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return d;
+      }
+      return null;
+    }
+    function coveredByLandmark(x, z, h) {
+      var keys = L.LANDMARKS;
+      for (var k in keys) {
+        var lm = keys[k];
+        if (!lm || lm.w <= 2) continue;
+        var dx = x - lm.x, dz = z - lm.z;
+        if (lm.h >= 40 && h >= 40 && Math.abs(h - lm.h) < Math.max(20, lm.h * 0.22) && dx * dx + dz * dz < 55 * 55) return true;
+        if (Math.abs(dx) < lm.w / 2 + 3 && Math.abs(dz) < lm.d / 2 + 3 && h < lm.h + 28) return true;
+      }
+      return false;
+    }
+    function makeMeasured(x, z, w, d, lo, hi, dist, rng, Hh) {
+      Hh = Math.max(4, Math.min(250, Hh));
+      var fine = (qcfg.footStep || 1) <= 0.5;
+      var lip = fine ? 0.5 : 1;
+      var style = pickStyle(dist, Hh, rng);
+      var colorHex = dist.colors[Math.floor(rng.next() * dist.colors.length) % dist.colors.length];
+      var seed = rng.int(1, 99999);
+      var colorRgb = richColor(colorHex, rng);
+      var K = new HK.Kit(city, { style: style, color: colorRgb, seed: seed, glow: 1 });
+      var plinthTop = hi + 0.15;
+      K.boxC(x, z, w + 0.2, d + 0.2, Math.min(lo, hi) - 1.1, plinthTop, { color: '#7d786f', style: F.PURE, collide: true, jitter: 0.02 });
+      var y = plinthTop;
+      var cw = w, cd = d;
+      if (Hh > 28) {
+        var podH = Math.min(Hh * 0.18, rng.float(3.5, 7));
+        K.boxC(x, z, cw, cd, y, y + podH, { color: U.shadeRgb(colorRgb, 0.86), style: Hh > 70 ? style : F.PUNCHED, seed: seed + 1, collide: true });
+        y += podH;
+        cw = Math.max(2.5, cw - lip);
+        cd = Math.max(2.5, cd - lip);
+      }
+      var remain = Math.max(3, Hh - (y - plinthTop));
+      var cuts = remain > 70 ? 3 : (remain > 28 ? 2 : 1);
+      for (var s = 0; s < cuts; s++) {
+        var frac = s === cuts - 1 ? 1 : (s === 0 ? 0.62 : 0.24);
+        var seg = s === cuts - 1 ? Math.max(2, (plinthTop + Hh) - y) : remain * frac;
+        K.boxC(x, z, cw, cd, y, y + seg, { color: colorRgb, style: style, seed: seed + s, collide: true });
+        if (fine && seg > 8) {
+          var belt = y + 6;
+          var topSeg = y + seg - 0.4;
+          while (belt < topSeg) {
+            K.boxC(x, z, cw + 0.45, cd + 0.45, belt, belt + 0.28, { color: U.shadeRgb(colorRgb, 1.08), style: F.PURE, collide: false, jitter: 0 });
+            belt += 14;
+          }
+        }
+        y += seg;
+        if (s < cuts - 1) {
+          cw = Math.max(2.5, cw - lip);
+          cd = Math.max(2.5, cd - lip);
+        }
+      }
+      if (Hh > 36) {
+        K.boxC(x, z, Math.max(2, cw - lip), Math.max(2, cd - lip), y, y + rng.float(1.2, 2.4), { color: U.shadeRgb(colorRgb, 0.7), style: F.PURE, collide: false });
+        y += 1.6;
+      }
+      if (Hh > 48 && rng.chance(0.45)) K.roofClutter(x, z, Math.max(3, cw - 1), Math.max(3, cd - 1), y, seed + 9);
+      if (doPil && fine && Hh > 16 && Math.min(w, d) >= 6) {
+        var shoreZ = z > 0 ? L.southShoreZ(x) : L.northShoreZ(x);
+        if (Math.abs(z - shoreZ) < 90) {
+          var face = z > 0 ? -1 : 1;
+          var finCol = U.shadeRgb(colorRgb, 0.78);
+          for (var px = -w / 2 + 1.6; px < w / 2 - 0.8; px += 3) {
+            K.boxC(x + px, z + face * (d / 2 + 0.22), 0.35, 0.42, plinthTop + 0.4, plinthTop + Hh * 0.9, {
+              color: finCol, style: F.PURE, collide: false, jitter: 0
+            });
+          }
+        }
+      }
+      city.frontage.push({ x: x, z: z, w: w, d: d, base: plinthTop, top: plinthTop + Hh, district: dist.id, neon: dist.neon, seed: seed, style: style, h: Hh });
+      if (dist.neon > 0.35 && Hh > 10) city.signs.push({ x: x, z: z, w: w, d: d, base: plinthTop, top: plinthTop + Hh, district: dist.id, seed: seed, neon: dist.neon });
+    }
+    function placeFootprints() {
+      var fp = HK.FOOTPRINTS;
+      if (!fp || !fp.b || !qcfg.footprints) return 0;
+      var minH = qcfg.footMin || 6;
+      var data = fp.b, n = 0, skipped = 0;
+      var genericHK = { id: 'osm', minH: 12, maxH: 120, styles: GLASSY, colors: ['#9eb4c0', '#c8bfae', '#8ea6b0', '#d5d0c6'], neon: 0.35, hill: false };
+      var genericKL = { id: 'osm', minH: 12, maxH: 90, styles: OLD.concat(GLASSY), colors: ['#c2b49a', '#a9b8b2', '#d0c4ae', '#8fa3a8'], neon: 0.6, hill: false };
+      for (var i = 0; i < data.length; i += 5) {
+        var x = data[i], z = data[i + 1], w = data[i + 2], d = data[i + 3], h = data[i + 4];
+        if (h < minH) { skipped++; continue; }
+        if (coveredByLandmark(x, z, h)) { skipped++; continue; }
+        var x0 = x - w / 2, z0 = z - d / 2;
+        if (!measuredOK(x0, z0, w, d)) { skipped++; continue; }
+        markOcc(x0, z0, w, d);
+        var dist = districtAt(x, z) || (z > 0 ? genericHK : genericKL);
+        var seed = ((Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663)) >>> 0;
+        makeMeasured(x, z, w, d, minBox.v, maxBox.v, dist, new HK.Rng(seed || 1), h);
+        n++;
+      }
+      HK.log('city: osm footprints', n, 'skipped', skipped, 'of', data.length / 5);
+      return n;
+    }
+
     /* ---------------------------------------------------- one building */
     function makeBuilding(x, z, w, d, lo, hi, dist, rng) {
       var baseY = hi;
@@ -285,7 +413,9 @@
       placed++;
     }
 
-    /* shore shops claim the waterfront before the tower pass fills it */
+    /* real footprints claim their plots before procedural fill and shore shops */
+    var footN = placeFootprints();
+    placed += footN;
     var frontN = placeWaterfront();
     placed += frontN;
 
@@ -447,7 +577,7 @@
     }
     return frontN;
     }
-    HK.log('city: buildings', placed, '(low-rise', lowPlaced + ', waterfront', frontN + ')', 'attempts', attempts, 'detail', qname);
+    HK.log('city: buildings', placed, '(osm', footN + ', low-rise', lowPlaced + ', waterfront', frontN + ')', 'attempts', attempts, 'detail', qname);
     B.stats = { placed: placed, attempts: attempts, colliders: city.colliders.length };
   }
 

@@ -555,10 +555,11 @@
       else K.box(X + bx2 - 1.4, Z + bz2 - 0.15, X + bx2 + 1.4, Z + bz2 + 0.15, G + 16.5, G + 18.0, { color: '#23231d', style: F.PURE, collide: false, jitter: 0 });
     }
     K.box(X - 4.9, Z - 4.9, X + 4.9, Z + 4.9, G + 18.2, G + 18.7, { color: '#efe9da', style: F.PURE, collide: false });
-    /* stone drum + copper pyramidal cap (the Kowloon station clock tower roof) */
-    K.cyl(X, Z, 3.4, G + 18.7, G + 19.5, 12, { color: '#e6e0d0', style: F.STONE, collide: false });
-    K.pyramid(X, Z, 8.4, 8.4, G + 19.3, G + 23.8, { roofColor: '#5f8674', style: F.METAL, collide: false });
-    K.spire(X, Z, 0.26, G + 23.8, G + 26.0, { color: '#c5a35a', style: F.PURE, collide: false });
+    /* copper dome and finial — the real former KCR clock tower cupola */
+    K.cyl(X, Z, 3.5, G + 18.7, G + 19.7, 14, { color: '#e6e0d0', style: F.STONE, collide: false });
+    K.dome(X, Z, 4.05, G + 19.3, G + 23.4, 6, { color: '#6d907c', style: F.METAL, collide: false });
+    K.cyl(X, Z, 0.55, G + 23.2, G + 24.1, 8, { color: '#d7c48a', style: F.METAL, collide: false });
+    K.spire(X, Z, 0.18, G + 24.0, G + 25.8, { color: '#c5a35a', style: F.PURE, collide: false });
     /* palms + lamps around the pool */
     palm(K, X - 11, Z + 7, G, 4.6, 823);
     palm(K, X + 11, Z + 7, G, 4.6, 824);
@@ -762,6 +763,36 @@
     avenueStairs(4, 14);
     avenueStairs(114, 124);
     avenueStairs(178, 188);
+    /* bronze Avenue of Stars star, just east of the clock, facing the harbour */
+    (function bronzeStar() {
+      var sx = -148, sz = L.northShoreZ(sx) - 2.2, gy = 2.2;
+      K.cyl(sx, sz, 3.3, gy, gy + 0.28, 18, { color: '#6a6258', style: F.STONE, collide: true });
+      K.cyl(sx, sz, 2.5, gy + 0.28, gy + 0.48, 16, { color: '#c6a15a', style: F.METAL, collide: false });
+      var cell = 0.42;
+      var poly = [];
+      for (var vi = 0; vi < 10; vi++) {
+        var rad = vi % 2 === 0 ? 1 : 0.4;
+        var a = -Math.PI / 2 + vi * Math.PI / 5;
+        poly.push([Math.cos(a), Math.sin(a)]);
+      }
+      function inside(px, py) {
+        var c = false, j = 9;
+        for (var i = 0; i < 10; i++) {
+          var yi = poly[i][1], yj = poly[j][1];
+          var xi = poly[i][0], xj = poly[j][0];
+          if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / ((yj - yi) || 1e-6) + xi)) c = !c;
+          j = i;
+        }
+        return c;
+      }
+      for (var iy = -6; iy <= 6; iy++) {
+        for (var ix = -6; ix <= 6; ix++) {
+          if (!inside((ix + 0.5) / 6, (iy + 0.5) / 6)) continue;
+          var x0s = sx + ix * cell, y0s = gy + 0.7 + (iy + 6) * cell;
+          K.box(x0s, sz - 0.28, x0s + cell, sz + 0.28, y0s, y0s + cell, { color: '#c4964a', style: F.METAL, collide: false, jitter: 0 });
+        }
+      }
+    })();
     /* avenue sign wall + lamps + benches */
     K.box(-66, L.northShoreZ(-66) - 4.6, -46, L.northShoreZ(-66) - 3.6, 2.2, 3.95, { color: '#9a958c', style: F.STONE, collide: true });
     K.sign({ x: -56, z: L.northShoreZ(-56) - 3.5, y: 3.2, w: 16, h: 1.6, rotY: 0, kind: 'led', palette: ['#ffb547', '#eae6dc'], text: '星光大道 AVENUE OF STARS' });

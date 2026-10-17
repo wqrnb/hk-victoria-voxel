@@ -283,9 +283,73 @@ def stack_atlas(painter):
     return atlas
 
 
+# Generated facade studies. They grade the procedural tiles (which stay
+# tileable and aligned to the floor grid) toward real glass, bronze, stone
+# and neon colour. Missing files leave the procedural atlas unchanged.
+PHOTO_STYLES = {
+    0: 'facade-glass-curtain.jpg',
+    1: 'facade-glass-curtain.jpg',
+    3: 'facade-bronze-glass.jpg',
+    4: 'facade-glass-curtain.jpg',
+    5: 'facade-granite-punched.jpg',
+    7: 'facade-granite-punched.jpg',
+    8: 'facade-neon-street.jpg',
+}
+
+
+def _photo_linear(path):
+    im = Image.open(path).convert('RGB')
+    w, h = im.size
+    m = 0.18
+    im = im.crop((int(w * m), int(h * 0.28), int(w * (1 - m)), int(h * (1 - m))))
+    im = im.resize((512, 512), Image.BICUBIC)
+    arr = np.asarray(im).astype(np.float64) / 255.0
+    return np.clip(arr, 0, 1) ** 2.2
+
+
+def grade_facades(day, night):
+    src_dir = os.path.join(ROOT, 'tools', 'gen-facades')
+    if not os.path.isdir(src_dir):
+        print('facade grades: no tools/gen-facades, procedural only')
+        return day, night
+    for style, name in PHOTO_STYLES.items():
+        path = os.path.join(src_dir, name)
+        if not os.path.exists(path):
+            continue
+        photo = _photo_linear(path)
+        blur = np.array(
+            Image.fromarray(srgb_u8(photo)).filter(ImageFilter.GaussianBlur(16)),
+            dtype=np.float64,
+        ) / 255.0
+        blur = np.clip(blur, 1e-4, 1) ** 2.2
+        detail = np.clip(photo - blur, -0.25, 0.25)
+        tx, ty = style % 4, style // 4
+        y0 = 2048 - (ty + 1) * 512
+        x0 = tx * 512
+        src = np.clip(day[y0:y0 + 512, x0:x0 + 512, :3].astype(np.float64) / 255.0, 1e-4, 1) ** 2.2
+        mean_src = src.reshape(-1, 3).mean(axis=0)
+        target = blur / blur.mean(axis=(0, 1)) * mean_src
+        mixed = np.clip(src * 0.48 + target * 0.52 + detail * 0.45, 0, 1)
+        day[y0:y0 + 512, x0:x0 + 512, 0] = srgb_u8(mixed[..., 0])
+        day[y0:y0 + 512, x0:x0 + 512, 1] = srgb_u8(mixed[..., 1])
+        day[y0:y0 + 512, x0:x0 + 512, 2] = srgb_u8(mixed[..., 2])
+        if style == 8:
+            # neon study drives the night tile's warm window glow
+            luma = photo.mean(axis=2)
+            glow = np.clip((luma - 0.25) / 0.55, 0, 1)[..., None] * np.array([1.0, 0.72, 0.38])
+            nsrc = np.clip(night[y0:y0 + 512, x0:x0 + 512, :3].astype(np.float64) / 255.0, 0, 1) ** 2.2
+            nm = np.clip(nsrc * 0.55 + glow * 0.85, 0, 1)
+            night[y0:y0 + 512, x0:x0 + 512, 0] = srgb_u8(nm[..., 0])
+            night[y0:y0 + 512, x0:x0 + 512, 1] = srgb_u8(nm[..., 1])
+            night[y0:y0 + 512, x0:x0 + 512, 2] = srgb_u8(nm[..., 2])
+        print('graded style', style, name)
+    return day, night
+
+
 def bake_facades():
     day = stack_atlas(paint_facade)
     night = stack_atlas(paint_night)
+    day, night = grade_facades(day, night)
     Image.fromarray(day, 'RGBA').save(os.path.join(OUT, 'facade-atlas.png'), optimize=True)
     Image.fromarray(night, 'RGBA').save(os.path.join(OUT, 'facade-night.png'), optimize=True)
     print('facade', os.path.getsize(os.path.join(OUT, 'facade-atlas.png')),

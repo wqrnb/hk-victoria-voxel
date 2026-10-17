@@ -22,15 +22,15 @@
 
   /* ---------------------------------------------------------------- IFC */
   function buildIFC(world, city) {
-    var cx = -318, cz = 352, g = G(world, cx, cz);
-    // IFC Mall podium + roof garden
+    var cx = -204, cz = 404, g = G(world, cx, cz);
+    // IFC Mall podium spans One IFC (west) and Two IFC (east, on the water)
     var M = K(city, F.BANDED, '#c5cccc', 1101);
-    M.boxC(-292, 388, 108, 64, g - 1.2, g + 9, { color: '#c2cac9', style: F.BANDED, roofColor: '#767f7b', collide: true });
-    M.boxC(-292, 388, 98, 54, g + 9, g + 9.9, { color: '#6f885f', style: F.PURE, roofColor: '#5c7650', collide: false, jitter: 0.04 });
-    M.boxC(-292, 388, 60, 18, g + 9.2, g + 10.6, { color: '#cdd5d2', style: F.GLASS_SILVER, collide: false });
-    M.boxC(-292, 388, 20, 10, g + 4, g + 9.2, { color: '#b5c0c0', style: F.GLASS_SILVER, collide: false });
-    // central plaza / steps to harbour
-    M.boxC(-300, 420, 46, 16, g - 1.2, g + 0.6, { color: '#9a9891', style: F.PURE, collide: false });
+    M.boxC(-228, 378, 112, 68, g - 1.2, g + 9, { color: '#c2cac9', style: F.BANDED, roofColor: '#767f7b', collide: true });
+    M.boxC(-228, 378, 100, 58, g + 9, g + 9.9, { color: '#6f885f', style: F.PURE, roofColor: '#5c7650', collide: false, jitter: 0.04 });
+    M.boxC(-228, 378, 64, 18, g + 9.2, g + 10.6, { color: '#cdd5d2', style: F.GLASS_SILVER, collide: false });
+    M.boxC(-228, 378, 22, 10, g + 4, g + 9.2, { color: '#b5c0c0', style: F.GLASS_SILVER, collide: false });
+    // steps toward the harbour
+    M.boxC(-228, 338, 48, 16, g - 1.2, g + 0.6, { color: '#9a9891', style: F.PURE, collide: false });
 
     // IFC1
     var k1 = K(city, F.GLASS_SILVER, '#b8c6cc', 1102);
@@ -88,7 +88,7 @@
     // vertical light slots at night
     k2.boxC(cx, cz, 1.6, 1.6, top + 9.5, top + 14, { style: F.LED, color: '#dfe6e4', glow: 1.2, collide: false });
     // harbourfront footbridge from mall
-    M.boxC(-292, 345, 60, 4, g + 5, g + 6.2, { style: F.PURE, color: '#cfd4d1', collide: false });
+    M.boxC(-228, 338, 64, 4, g + 5, g + 6.2, { style: F.PURE, color: '#cfd4d1', collide: false });
   }
 
   /* ------------------------------------------------------- Bank of China */
@@ -190,7 +190,7 @@
 
   /* ------------------------------------------------------ Cheung Kong */
   function buildCheungKong(world, city) {
-    var cx = -62, cz = 468, g = G(world, cx, cz);
+    var cx = -68, cz = 431, g = G(world, cx, cz);
     var k = K(city, F.GLASS_SILVER, '#c9d3d6', 1401);
     k.boxC(cx, cz, 32, 32, g - 1.2, g + 7, { style: F.BANDED, color: '#b6c0c2', roofColor: '#6d7373' });
     k.boxC(cx, cz, 26, 26, g + 7, g + 142, { style: F.GLASS_SILVER, color: '#c9d3d6', roofColor: '#6f7677' });
@@ -224,7 +224,7 @@
 
   /* ----------------------------------------------------------- The Center */
   function buildTheCenter(world, city) {
-    var cx = -92, cz = 512, g = G(world, cx, cz);
+    var cx = -318, cz = 424, g = G(world, cx, cz);
     var k = K(city, F.CURTAIN_DARK, '#43505a', 1601);
     k.boxC(cx, cz, 36, 36, g - 1.2, g + 8, { style: F.BANDED, color: '#7b858a', roofColor: '#4d5457' });
     k.boxC(cx, cz, 28, 28, g + 8, g + 173, { style: F.CURTAIN_DARK, color: '#48555f', roofColor: '#3d444a' });
