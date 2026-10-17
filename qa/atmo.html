@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HK VOXEL HARBOUR — Atmosphere QA</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #05070c; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; left: 14px; bottom: 12px; color: #cfd6dd;
+    font: 11px/1.5 Consolas, "SFMono-Regular", monospace;
+    opacity: .78; pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,.9);
+    white-space: pre; letter-spacing: .04em;
+  }
+  #err {
+    position: fixed; left: 0; top: 0; right: 0; background: #3a0d12; color: #ffd7d7;
+    font: 12px/1.4 Consolas, monospace; padding: 8px 12px; display: none; white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+<div id="err"></div>
+<div id="hud"></div>
+
+<!-- classic scripts only, exact production load order for the atmosphere trio -->
+<script src="../vendor/three.min.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/sky.js"></script>
+<script src="../js/water.js"></script>
+<script src="../js/post.js"></script>
+<script>
+(function () {
+  'use strict';
+  var T = window.THREE, HK = window.HK, U = HK.Util;
+  var P = U.urlParams();
+  var hudEl = document.getElementById('hud');
+  var errEl = document.getElementById('err');
+  function fail(msg) {
+    console.error(msg);
+    errEl.style.display = 'block';
+    errEl.textContent = 'QA ERROR: ' + msg;
+    window.__READY__ = true; // let the shot driver finish and collect the error
+  }
+  window.addEventListener('error', function (e) { errEl.style.display = 'block'; errEl.textContent = 'ERROR: ' + e.message; });
+
+  try {
+    /* ------------------------------------------------------------ options */
+    var quality = HK.QUALITY[P.quality] ? P.quality : 'medium';
+    var qcfg = HK.QUALITY[quality];
+    var weather = P.weather === 'mist' || P.weather === 'rain' ? P.weather : 'clear';
+    var view = P.view || 'postcard';
+    var timeHours = P.time != null ? parseFloat(P.time) : 18.62;
+    if (P.time == null) {
+      if (view === 'night') timeHours = 21.4;
+      else if (view === 'blue') timeHours = 19.35;
+      else if (view === 'dawn') timeHours = 5.95;
+      else if (view === 'midday') timeHours = 12.6;
+    }
+    var pixelRatio = P.pr != null ? U.clamp(parseFloat(P.pr) || 1, 0.5, 2) : 1;
+    var showHud = P.hud !== '0';
+
+    var VIEWS = {
+      postcard: { pos: [1150, 300, -420], target: [-1250, 40, 330], fov: 46, shadow: 2600 },
+      low:      { pos: [120, 8.5, -250], target: [-260, 150, 460], fov: 55, shadow: 1800 },
+      night:    { pos: [1150, 240, -420], target: [-1250, 120, 330], fov: 50, shadow: 2600 },
+      peak:     { pos: [-280, 205, 760], target: [-40, 30, -380], fov: 50, shadow: 2400 },
+      harbour:  { pos: [1000, 580, -900], target: [-220, 0, 520], fov: 48, shadow: 2600 },
+      sunpath:  { pos: [1150, 300, -420], target: [-1250, 40, 330], fov: 46, shadow: 2600 },
+      shore:    { pos: [-60, 40, 200], target: [-150, 5, 335], fov: 50, shadow: 1800 }
+    };
+    var V = VIEWS[view] || VIEWS.postcard;
+
+    /* ------------------------------------------------------------ renderer */
+    var renderer = new T.WebGLRenderer({
+      antialias: false, powerPreference: 'high-performance',
+      stencil: false, preserveDrawingBuffer: true, alpha: false
+    });
+    renderer.outputEncoding = T.sRGBEncoding;
+    renderer.toneMapping = T.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    var scene = new T.Scene();
+    var camera = new T.PerspectiveCamera(V.fov, window.innerWidth / window.innerHeight, 1, HK.CAMERA_FAR);
+    camera.position.set(V.pos[0], V.pos[1], V.pos[2]);
+    camera.lookAt(new T.Vector3(V.target[0], V.target[1], V.target[2]));
+
+    /* ------------------------------------------------------------ state */
+    var state = {};
+    for (var k in HK.DEFAULT_STATE) state[k] = HK.DEFAULT_STATE[k];
+    state.quality = quality;
+    state.timeHours = timeHours;
+    state.weather = weather;
+    state.mode = 'orbit';
+    state.paused = false;
+    state.photo = false;
+
+    /* ================================================================
+     * SKY + LIGHTS + FOG
+     * ============================================================== */
+    var sky = HK.Sky.create({ scene: scene, renderer: renderer, quality: quality });
+    if (P.lightning === '0') sky._flashTimer = 1e9;
+    sky.setShadowFocus(V.target[0], V.target[2], V.shadow || 2200);
+
+    /* ================================================================
+     * PLACEHOLDER VOXEL SKYLINE (cheap, merged, self-contained)
+     * ============================================================== */
+    var rng = new HK.Rng(0xA71E5);
+    var landBatch = new HK.Batch(HK.ATTRS_COLOR);
+    var cityBatch = new HK.Batch([{ name: 'aSeed', size: 1 }]);
+    var neonBatch = new HK.Batch(HK.ATTRS_COLOR);
+    var citySeedCounter = 0;
+
+    var C = {
+      urban: [0.34, 0.35, 0.37], urban2: [0.28, 0.29, 0.32], urban3: [0.40, 0.39, 0.40],
+      towerA: [0.42, 0.44, 0.48], towerB: [0.34, 0.36, 0.40], towerC: [0.48, 0.47, 0.46],
+      towerD: [0.30, 0.33, 0.37], glass: [0.30, 0.40, 0.47], glassBlue: [0.26, 0.34, 0.44],
+      promenade: [0.52, 0.48, 0.41], hill: [0.26, 0.35, 0.24], hillFar: [0.24, 0.29, 0.30],
+      rock: [0.32, 0.31, 0.28], seawall: [0.30, 0.29, 0.27]
+    };
+    function shade(c, f) { return [c[0] * f, c[1] * f, c[2] * f]; }
+    var FACE = [0.86, 0.78, 1.0, 0.72, 0.82]; // +x, -x, +y, -z, +z approx light factors
+
+    function addBox(batch, x0, x1, y0, y1, z0, z1, col, extra) {
+      var r = [col[0], col[1], col[2]];
+      var top = shade(r, 1.0), sx = shade(r, 0.84), nx = shade(r, 0.74), pz = shade(r, 0.94), nz = shade(r, 0.68);
+      batch.addQuad([x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], 0, 1, 0, top, null, extra);
+      if (y0 > -50) batch.addQuad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], 0, -1, 0, nx, null, extra);
+      batch.addQuad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], 0, 0, 1, pz, null, extra);
+      batch.addQuad([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], 0, 0, -1, nz, null, extra);
+      batch.addQuad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], 1, 0, 0, sx, null, extra);
+      batch.addQuad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], -1, 0, 0, nx, null, extra);
+    }
+    function addTower(x, z, w, d, h, base, extraSeed) {
+      var seed = (citySeedCounter++ % 97) / 97 + rng.float(0, 0.01);
+      var ex = { aSeed: seed };
+      addBox(cityBatch, x - w / 2, x + w / 2, 4, 4 + h, z - d / 2, z + d / 2, base, ex);
+      // setbacks / crowns
+      var steps = rng.int(0, 2);
+      var cx = x, cz = z, cw = w, cd = d, cy = 4 + h;
+      for (var s = 0; s < steps; s++) {
+        cw *= rng.float(0.55, 0.8); cd *= rng.float(0.55, 0.8);
+        var sh = h * rng.float(0.05, 0.18);
+        addBox(cityBatch, cx - cw / 2, cx + cw / 2, cy, cy + sh, cz - cd / 2, cz + cd / 2, shade(base, 1.05), ex);
+        cy += sh;
+      }
+      // antenna / spire on some
+      if (rng.chance(0.30)) {
+        var ah = h * rng.float(0.06, 0.18);
+        addBox(cityBatch, cx - 1.2, cx + 1.2, cy, cy + ah, cz - 1.2, cz + 1.2, [0.24, 0.24, 0.26], ex);
+        if (rng.chance(0.5)) {
+          neonBatch.addQuad([cx - 1.6, cy + ah, cz - 0.2], [cx + 1.6, cy + ah, cz - 0.2],
+                            [cx + 1.6, cy + ah, cz + 0.2], [cx - 1.6, cy + ah, cz + 0.2], 0, 1, 0, [2.6, 0.22, 0.16]);
+        }
+      }
+      return cy;
+    }
+    function addNeonStrip(x, y, z, w, h, col) {
+      neonBatch.addQuad([x - w / 2, y + h, z], [x + w / 2, y + h, z], [x + w / 2, y, z], [x - w / 2, y, z], 0, 0, 1, col);
+    }
+
+    /* ---- land masses (Kowloon north / Hong Kong Island south) ---- */
+    function terrainStrip(zNear, zFar, baseY, side) {
+      // zNear = harbour edge, zFar = away from water
+      var z0 = Math.min(zNear, zFar), z1 = Math.max(zNear, zFar);
+      addBox(landBatch, -1500, 1500, -12, baseY, z0, z1, C.urban);
+      // promenade strip along the water
+      var pe = 16;
+      if (side === 'south') {
+        addBox(landBatch, -1500, 1500, baseY - 2, baseY + 2, z0, z0 + pe, C.promenade);
+        addBox(landBatch, -1500, 1500, -4, baseY, z0 - 4, z0, C.seawall);
+      } else {
+        addBox(landBatch, -1500, 1500, baseY - 2, baseY + 2, z1 - pe, z1, C.promenade);
+        addBox(landBatch, -1500, 1500, -4, baseY, z1, z1 + 4, C.seawall);
+      }
+    }
+    // Kowloon: water at z >= -320, land z in [-1000,-320]
+    terrainStrip(-320, -1000, 4, 'north');
+    // HK Island: land z in [300, 1000], water z <= 300
+    terrainStrip(300, 1000, 4, 'south');
+
+    /* ---- piers / reclamations poking into the harbour ---- */
+    addBox(landBatch, 18, 66, -8, 6, -320, -232, C.urban2);       // TST Star Ferry pier
+    addBox(landBatch, -176, -48, -8, 6, 232, 300, C.urban2);      // Central piers
+    addBox(landBatch, 118, 268, -8, 8, 226, 300, C.urban3);          // HKCEC reclamation
+    addBox(landBatch, -980, -900, -8, 6, -360, -300, C.urban2);      // West Kowloon edge
+
+    /* ---- hills behind the skylines ---- */
+    function ridge(x0, x1, z0, z1, h, col, col2) {
+      addBox(landBatch, x0, x1, 0, h, z0, z1, col);
+      var xm = (x0 + x1) / 2;
+      addBox(landBatch, xm - (x1 - x0) * 0.28, xm + (x1 - x0) * 0.28, h, h * 1.45, z0 + (z1 - z0) * 0.2, z1 - (z1 - z0) * 0.2, col2);
+    }
+    ridge(-1250, -520, 600, 960, 118, C.hill, shade(C.hill, 1.15));
+    ridge(-620, 220, 640, 1000, 150, C.hill, shade(C.hill, 1.2));      // Victoria Peak
+    ridge(240, 900, 620, 980, 96, C.hill, shade(C.hill, 1.1));
+    ridge(-1400, -1150, 420, 900, 70, C.hillFar, C.hillFar);
+    ridge(-1250, -520, -1000, -680, 78, C.hillFar, shade(C.hillFar, 1.12));
+    ridge(-500, 500, -1000, -720, 56, C.hillFar, shade(C.hillFar, 1.1));
+    ridge(560, 1180, -1000, -740, 64, C.hillFar, shade(C.hillFar, 1.1));
+    // far ranges fading into haze
+    addBox(landBatch, -2200, 2200, -20, 130, 1050, 1650, C.hillFar);
+    addBox(landBatch, -2200, 2200, -20, 92, -1650, -1060, shade(C.hillFar, 1.05));
+
+    /* ---- Kowloon / TST towers ---- */
+    var towerCols = [C.towerA, C.towerB, C.towerC, C.towerD, C.glass, C.glassBlue];
+    var x, h;
+    for (x = -1300; x < 1300; x += rng.float(34, 70)) {
+      var zz = -300 - rng.float(8, 120);
+      addTower(x, zz, rng.float(16, 34), rng.float(16, 34), rng.float(18, 110), rng.pick(towerCols));
+    }
+    // West Kowloon cluster + ICC-like landmark
+    for (x = -860; x < -420; x += rng.float(40, 80)) {
+      addTower(x, -330 - rng.float(10, 90), rng.float(18, 36), rng.float(18, 36), rng.float(40, 170), rng.pick(towerCols));
+    }
+    var iccH = 285;
+    addBox(cityBatch, -520 - 30, -520 + 30, 4, 4 + iccH * 0.72, -352 - 26, -352 + 26, C.glassBlue, { aSeed: 0.61 });
+    addBox(cityBatch, -520 - 22, -520 + 22, 4 + iccH * 0.72, 4 + iccH, -352 - 19, -352 + 19, shade(C.glassBlue, 1.08), { aSeed: 0.62 });
+    addBox(cityBatch, -520 - 2, -520 + 2, 4 + iccH, 4 + iccH + 26, -352 - 2, -352 + 2, [0.28, 0.30, 0.33], { aSeed: 0.63 });
+    addNeonStrip(-520, 4 + iccH * 0.70, -352 - 26.3, 46, 9, [0.15, 2.4, 3.6]);
+    addNeonStrip(-520, 4 + iccH * 0.35, -352 - 26.3, 52, 5, [2.6, 0.3, 1.9]);
+
+    /* ---- Hong Kong Island towers (Central / Admiralty / Wan Chai / CWB) ---- */
+    for (x = -1250; x < -380; x += rng.float(36, 76)) {
+      addTower(x, 340 + rng.float(12, 150), rng.float(16, 34), rng.float(16, 34), rng.float(26, 130), rng.pick(towerCols));
+    }
+    // IFC-like twin landmark (Central waterfront)
+    addBox(cityBatch, -246 - 26, -246 + 26, 4, 4 + 130, 318 - 24, 318 + 24, C.glass, { aSeed: 0.21 });
+    addBox(cityBatch, -246 - 20, -246 + 20, 4 + 130, 4 + 248, 318 - 18, 318 + 18, shade(C.glass, 1.1), { aSeed: 0.22 });
+    addBox(cityBatch, -246 - 6, -246 + 6, 4 + 248, 4 + 268, 318 - 6, 318 + 6, [0.30, 0.36, 0.42], { aSeed: 0.23 });
+    // Bank of China-ish stepped triangular silhouette
+    var bocX = -136, bocZ = 396;
+    for (var b = 0; b < 5; b++) {
+      var bw = 40 - b * 7;
+      addBox(cityBatch, bocX - bw / 2, bocX + bw / 2, 4 + b * 34, 4 + (b + 1) * 34, bocZ - 18 + b * 3.5, bocZ + 18 - b * 3.5, C.towerC, { aSeed: 0.31 + b * 0.01 });
+    }
+    addBox(cityBatch, bocX - 1.5, bocX + 1.5, 174, 250, bocZ - 1.5, bocZ + 1.5, [0.30, 0.31, 0.33], { aSeed: 0.38 });
+    // Central Plaza / The Center / HSBC silhouettes
+    addBox(cityBatch, 34 - 24, 34 + 24, 4, 4 + 200, 386 - 22, 386 + 22, C.towerB, { aSeed: 0.41 });
+    addBox(cityBatch, 34 - 8, 34 + 8, 4 + 200, 4 + 236, 386 - 8, 386 + 8, [0.32, 0.34, 0.38], { aSeed: 0.42 });
+    addBox(cityBatch, 176 - 26, 176 + 26, 4, 4 + 218, 402 - 24, 402 + 24, C.towerD, { aSeed: 0.43 });
+    addBox(cityBatch, -64 - 40, -64 + 40, 4, 4 + 74, 372 - 20, 372 + 20, C.urban3, { aSeed: 0.44 });
+    // dense east side cluster
+    for (x = 230; x < 1300; x += rng.float(30, 62)) {
+      addTower(x, 330 + rng.float(10, 160), rng.float(16, 34), rng.float(16, 34), rng.float(24, 150), rng.pick(towerCols));
+    }
+    // mid-island towers behind the waterfront (depth)
+    for (x = -900; x < 1100; x += rng.float(60, 120)) {
+      addTower(x, 470 + rng.float(20, 160), rng.float(18, 40), rng.float(18, 40), rng.float(30, 120), rng.pick(towerCols));
+    }
+
+    /* ---- low-rise waterfront blocks: shops, piers, low urban grain ---- */
+    for (x = -1300; x < 1300; x += rng.float(26, 58)) {
+      var lz = rng.chance(0.5);
+      var lzz = lz ? (-312 - rng.float(2, 26)) : (312 + rng.float(2, 26));
+      var lh = rng.float(6, 26);
+      addTower(x, lzz, rng.float(12, 30), rng.float(10, 22), lh, rng.pick([C.urban2, C.urban3, C.towerD, C.urban]));
+    }
+    /* ---- promenade / street light points (night only, HDR dots) ---- */
+    for (x = -1450; x < 1450; x += rng.float(26, 46)) {
+      var south = rng.chance(0.5);
+      var sz = south ? (302 + rng.float(-4, 2)) : (-322 + rng.float(-2, 4));
+      var warm = rng.chance(0.72);
+      var lc = warm ? [2.6, 1.55, 0.75] : [1.2, 2.3, 2.9];
+      neonBatch.addQuad([x - 2.0, 8.4, sz], [x + 2.0, 8.4, sz], [x + 2.0, 8.0, sz], [x - 2.0, 8.0, sz], 0, 1, 0, lc);
+      if (rng.chance(0.35)) {
+        var sz2 = south ? (318 + rng.float(10, 60)) : (-338 - rng.float(10, 60));
+        neonBatch.addQuad([x - rng.float(6, 16), 8.4, sz2], [x + rng.float(6, 16), 8.4, sz2], [x + rng.float(6, 16), 8.0, sz2], [x - rng.float(6, 16), 8.0, sz2], 0, 1, 0, lc);
+      }
+    }
+    /* ---- few very visible neon signs (HDR, bloom will eat them) ---- */
+    var neonCols = [[2.8, 0.45, 1.7], [0.30, 2.5, 3.2], [3.0, 1.6, 0.35], [2.4, 0.4, 0.35], [0.5, 3.0, 1.2], [2.2, 2.2, 2.4]];
+    for (var nI = 0; nI < 34; nI++) {
+      var nx = rng.float(-900, 900);
+      var isSouth = rng.chance(0.5);
+      var nz = isSouth ? 316 - rng.float(0, 14) : -312 + rng.float(0, 14);
+      var ny = rng.float(12, 70);
+      var nh = rng.float(2, 10);
+      var nw = rng.float(3, 18);
+      var nc = neonCols[nI % neonCols.length];
+      neonBatch.addQuad([nx - nw / 2, ny + nh, nz], [nx + nw / 2, ny + nh, nz], [nx + nw / 2, ny, nz], [nx - nw / 2, ny, nz], 0, 0, isSouth ? 1 : -1, nc);
+    }
+
+    /* ---- a few harbour ferries for scale / light interest ---- */
+    function ferry(x, z, col) {
+      addBox(cityBatch, x - 9, x + 9, 1, 5, z - 3.4, z + 3.4, col, { aSeed: 0.9 });
+      addBox(cityBatch, x - 6, x + 6, 5, 7.4, z - 2.6, z + 2.6, [0.72, 0.70, 0.64], { aSeed: 0.91 });
+      neonBatch.addQuad([x - 5.5, 7.0, z - 2.65], [x + 5.5, 7.0, z - 2.65], [x + 5.5, 6.2, z - 2.65], [x - 5.5, 6.2, z - 2.65], 0, 0, -1, [1.8, 1.6, 1.1]);
+    }
+    ferry(-40, -120, [0.16, 0.36, 0.27]);
+    ferry(230, 60, [0.16, 0.36, 0.27]);
+    ferry(-360, 150, [0.62, 0.20, 0.17]);
+
+    /* ---- build geometries ---- */
+    var landGeo = landBatch.build();
+    var landMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0.0, color: new T.Color(0.62, 0.62, 0.62) });
+    var landMesh = new T.Mesh(landGeo, landMat);
+    landMesh.receiveShadow = true;
+    landMesh.name = 'qaLand';
+    scene.add(landMesh);
+
+    var cityUniforms = {
+      uSunDir: { value: sky.env.sunDir },
+      uSunColor: { value: new T.Color() },
+      uSunI: { value: 2.5 },
+      uSkyColor: { value: new T.Color() },
+      uGroundColor: { value: new T.Color(0.09, 0.06, 0.04) },
+      uHorizonColor: { value: new T.Color() },
+      uFogColor: { value: new T.Color() },
+      uFogDensity: { value: 0.00022 },
+      uCityGlow: { value: new T.Color() },
+      uNight: { value: 0 },
+      uTime: { value: 0 }
+    };
+    var cityMat = new T.ShaderMaterial({
+      uniforms: cityUniforms,
+      vertexColors: true,
+      vertexShader: [
+        'attribute float aSeed;',
+        'varying vec3 vWorld;',
+        'varying vec3 vNormal;',
+        'varying vec3 vColor;',
+        'varying float vSeed;',
+        'void main() {',
+        '  vec4 wp = modelMatrix * vec4(position, 1.0);',
+        '  vWorld = wp.xyz;',
+        '  vNormal = normalize(mat3(modelMatrix) * normal);',
+        '  vColor = color;',
+        '  vSeed = aSeed;',
+        '  gl_Position = projectionMatrix * viewMatrix * wp;',
+        '}'
+      ].join('\n'),
+      fragmentShader: [
+        'precision highp float;',
+        'varying vec3 vWorld;',
+        'varying vec3 vNormal;',
+        'varying vec3 vColor;',
+        'varying float vSeed;',
+        'uniform vec3 uSunDir, uSunColor, uSkyColor, uGroundColor, uHorizonColor, uFogColor, uCityGlow;',
+        'uniform float uSunI, uNight, uFogDensity, uTime;',
+        'float hash21(vec2 p) {',
+        '  p = fract(p * vec2(123.34, 456.21));',
+        '  p += dot(p, p + 45.32);',
+        '  return fract(p.x * p.y);',
+        '}',
+        'void main() {',
+        '  vec3 N = normalize(vNormal);',
+        '  float ndl = max(dot(N, uSunDir), 0.0);',
+        '  vec3 amb = mix(uGroundColor, uSkyColor, N.y * 0.5 + 0.5) * 2.15 + uHorizonColor * 0.16;',
+        '  vec3 col = vColor * 0.62 * (amb + uSunColor * uSunI * ndl * 0.34);',
+        '  if (abs(N.y) < 0.62) {',
+        '    vec2 fuv = abs(N.x) > abs(N.z) ? vWorld.zy : vWorld.xy;',
+        '    vec2 gs = fuv / vec2(2.05, 2.75) + vec2(vSeed * 31.7, vSeed * 17.3);',
+        '    vec2 cell = floor(gs);',
+        '    vec2 f = fract(gs);',
+        '    float win = step(0.16, f.x) * step(f.x, 0.84) * step(0.20, f.y) * step(f.y, 0.80);',
+        '    float h = hash21(cell);',
+        '    float litP = uNight * 0.40;',
+        '    float lit = step(h, litP) * uNight;',
+        '    vec3 warm = vec3(1.0, 0.64, 0.30);',
+        '    vec3 cool = vec3(0.52, 0.72, 1.0);',
+        '    vec3 wc = mix(warm, cool, step(0.60, hash21(cell + 3.7)));',
+        '    float flick = 0.78 + 0.22 * sin(uTime * (0.7 + h * 2.2) + h * 33.0);',
+        '    float wfade = 1.0 - smoothstep(350.0, 1300.0, length(cameraPosition - vWorld));',
+        '    win = mix(0.62, win, wfade);',
+        '    col = mix(col, col * 0.20, win * (0.55 - uNight * 0.30));',
+        '    col += win * lit * wc * (0.45 + 0.75 * hash21(cell + 7.1)) * flick * 0.85;',
+        '    float shop = smoothstep(11.0, 3.0, vWorld.y) * step(0.42, hash21(vec2(floor(vWorld.x / 9.0) + vSeed, floor(vWorld.z / 9.0))));',
+        '    col += shop * vec3(1.0, 0.66, 0.34) * uNight * 1.1;',
+        '  } else if (N.y > 0.5) {',
+        '    col *= 1.06;',
+        '  }',
+        '  float dist = length(cameraPosition - vWorld);',
+        '  float fd = dist * uFogDensity;',
+        '  col = mix(col, uFogColor, clamp(1.0 - exp(-fd * fd), 0.0, 1.0));',
+        '  gl_FragColor = vec4(col, 1.0);',
+        '}'
+      ].join('\n')
+    });
+    var cityMesh = new T.Mesh(cityBatch.build(), cityMat);
+    cityMesh.castShadow = true;
+    cityMesh.receiveShadow = false;
+    cityMesh.name = 'qaCity';
+    scene.add(cityMesh);
+
+    var neonUniforms = { uNight: { value: 0 } };
+    var neonMat = new T.ShaderMaterial({
+      uniforms: neonUniforms,
+      vertexColors: true,
+      vertexShader: 'varying vec3 vColor; void main(){ vColor = color; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'precision highp float; varying vec3 vColor; uniform float uNight; void main(){ gl_FragColor = vec4(vColor * (0.02 + 0.98 * uNight * uNight), 1.0); }'
+    });
+    var neonMesh = new T.Mesh(neonBatch.build(), neonMat);
+    neonMesh.name = 'qaNeon';
+    scene.add(neonMesh);
+
+    /* ================================================================
+     * WATER
+     * ============================================================== */
+    var water = HK.Water.create({ scene: scene, renderer: renderer, quality: quality });
+
+    /* ---- procedural shore mask (R=land, G=shore distance over ~60 units) ---- */
+    function makeShoreMask(w, h, bounds, piers) {
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      var img = ctx.createImageData(w, h);
+      var data = img.data;
+      var land = new Uint8Array(w * h);
+      var dxw = (bounds.maxX - bounds.minX) / w;
+      var dzw = (bounds.maxZ - bounds.minZ) / h;
+      function inPier(x, z) {
+        for (var i = 0; i < piers.length; i++) {
+          var p = piers[i];
+          if (x >= p[0] && x <= p[1] && z >= p[2] && z <= p[3]) return true;
+        }
+        return false;
+      }
+      var ix, iy;
+      for (iy = 0; iy < h; iy++) {
+        var wz = bounds.minZ + (iy + 0.5) * dzw;
+        for (ix = 0; ix < w; ix++) {
+          var wx = bounds.minX + (ix + 0.5) * dxw;
+          var isLand = (wz <= -320) || (wz >= 300) || inPier(wx, wz);
+          land[iy * w + ix] = isLand ? 1 : 0;
+        }
+      }
+      // approximate distance-to-shore via two-pass chamfer on the land boundary
+      var dist = new Float32Array(w * h);
+      var BIG = 1e9;
+      for (iy = 0; iy < h; iy++) for (ix = 0; ix < w; ix++) {
+        var idx = iy * w + ix;
+        var isL = land[idx];
+        var nb = false;
+        for (var oy = -1; oy <= 1 && !nb; oy++) for (var ox = -1; ox <= 1; ox++) {
+          var jx = ix + ox, jy = iy + oy;
+          if (jx < 0 || jy < 0 || jx >= w || jy >= h) { nb = true; break; }
+          if (land[jy * w + jx] !== isL) { nb = true; break; }
+        }
+        dist[idx] = nb ? 0 : BIG;
+      }
+      for (iy = 0; iy < h; iy++) {
+        for (ix = 0; ix < w; ix++) {
+          var id2 = iy * w + ix;
+          if (ix > 0) dist[id2] = Math.min(dist[id2], dist[id2 - 1] + 1);
+          if (iy > 0) dist[id2] = Math.min(dist[id2], dist[id2 - w] + 1);
+          if (ix > 0 && iy > 0) dist[id2] = Math.min(dist[id2], dist[id2 - w - 1] + 1.41);
+          if (ix < w - 1 && iy > 0) dist[id2] = Math.min(dist[id2], dist[id2 - w + 1] + 1.41);
+        }
+      }
+      for (iy = h - 1; iy >= 0; iy--) {
+        for (ix = w - 1; ix >= 0; ix--) {
+          var id3 = iy * w + ix;
+          if (ix < w - 1) dist[id3] = Math.min(dist[id3], dist[id3 + 1] + 1);
+          if (iy < h - 1) dist[id3] = Math.min(dist[id3], dist[id3 + w] + 1);
+          if (ix < w - 1 && iy < h - 1) dist[id3] = Math.min(dist[id3], dist[id3 + w + 1] + 1.41);
+          if (ix > 0 && iy < h - 1) dist[id3] = Math.min(dist[id3], dist[id3 + w - 1] + 1.41);
+        }
+      }
+      var scale = Math.min(dxw, dzw);
+      for (iy = 0; iy < h; iy++) {
+        for (ix = 0; ix < w; ix++) {
+          var id4 = iy * w + ix;
+          var o = id4 * 4;
+          data[o] = land[id4] ? 255 : 0;
+          var worldDist = dist[id4] * scale;
+          data[o + 1] = Math.round(U.clamp(worldDist / 60, 0, 1) * 255);
+          data[o + 2] = 0; data[o + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas;
+    }
+    var maskBounds = { minX: -1500, maxX: 1500, minZ: -1000, maxZ: 1000 };
+    var maskCanvas = makeShoreMask(256, 256, maskBounds, [
+      [18, 66, -320, -232],
+      [-176, -48, 232, 300],
+      [118, 268, 226, 300],
+      [-980, -900, -360, -300]
+    ]);
+    water.setShoreMask(maskCanvas, maskBounds);
+
+    /* ================================================================
+     * POST
+     * ============================================================== */
+    var post = HK.Post.create({ renderer: renderer, scene: scene, camera: camera, quality: quality, env: sky.env });
+    post.setPhoto(!!state.photo);
+
+    /* ---- QA-only visual debugging switches ---- */
+    if (P.bloom === '0') post.bloomEnabled = false;
+    if (P.hide) {
+      var hideList = P.hide.split(',');
+      if (hideList.indexOf('water') >= 0) water.mesh.visible = false;
+      if (hideList.indexOf('city') >= 0) { cityMesh.visible = false; neonMesh.visible = false; }
+      if (hideList.indexOf('land') >= 0) landMesh.visible = false;
+      if (hideList.indexOf('sky') >= 0) sky.dome.visible = false;
+      if (hideList.indexOf('rain') >= 0 && sky.rain) sky.rain.visible = false;
+    }
+
+    /* ================================================================
+     * LOOP
+     * ============================================================== */
+    var clock = new T.Clock();
+    var frames = 0;
+    var fps = 0, fpsAcc = 0, fpsFrames = 0;
+    var focusV = new T.Vector3(V.target[0], 0, V.target[2]);
+
+    function syncCityUniforms() {
+      if (window.__QA && window.__QA.cityFrozen) return;
+      var e = sky.env;
+      cityUniforms.uSunDir.value.copy(e.sunDir);
+      cityUniforms.uSunColor.value.copy(e.sunColor);
+      cityUniforms.uSunI.value = e.sunIntensity;
+      cityUniforms.uSkyColor.value.copy(e.zenithColor);
+      cityUniforms.uGroundColor.value.copy(e.horizonColor).multiplyScalar(0.10 + e.night * 0.06);
+      cityUniforms.uHorizonColor.value.copy(e.horizonColor);
+      cityUniforms.uFogColor.value.copy(e.fogColor);
+      cityUniforms.uFogDensity.value = e.fogDensity;
+      cityUniforms.uCityGlow.value.copy(e.cityGlow);
+      cityUniforms.uNight.value = e.night;
+      cityUniforms.uTime.value = clock.elapsedTime;
+      neonUniforms.uNight.value = e.night;
+    }
+
+    function hudText() {
+      var e = sky.env;
+      return 'ATMO QA  ' + quality + '  ' + view + '  ' + weather + '  t=' + e.timeHours.toFixed(2) + 'h' +
+        '\nnight=' + e.night.toFixed(2) + '  sunAlt=' + e.sunAlt.toFixed(1) + '°  fog=' + e.fogDensity.toFixed(5) +
+        '\nfps=' + fps.toFixed(1) + '  frames=' + frames + '  draws=' + renderer.info.render.calls +
+        '\nsun=' + colorHex(e.sunColor) + '  horizon=' + colorHex(e.horizonColor) + '  zenith=' + colorHex(e.zenithColor);
+    }
+    function colorHex(c) {
+      // linear -> approx display hex for the HUD
+      function e2s(v) { v = U.clamp(v, 0, 1); return Math.round(Math.pow(v, 1 / 2.2) * 255); }
+      var r = e2s(c.r), g = e2s(c.g), b = e2s(c.b);
+      return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+
+    function tick() {
+      requestAnimationFrame(tick);
+      var dt = Math.min(clock.getDelta(), 0.1);
+      state.timeHours = timeHours;
+      state.weather = weather;
+      state.quality = quality;
+      sky.update(dt, state);
+      water.update(dt, state, camera.position, sky.env);
+      syncCityUniforms();
+      post.render(dt);
+      frames++;
+      fpsAcc += dt; fpsFrames++;
+      if (fpsAcc > 0.5) { fps = fpsFrames / fpsAcc; fpsAcc = 0; fpsFrames = 0; }
+      if (frames >= 5) window.__READY__ = true;
+      if (showHud) hudEl.textContent = hudText();
+    }
+
+    window.addEventListener('resize', function () {
+      var w = window.innerWidth, h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      post.resize(w, h, renderer.getPixelRatio());
+    });
+
+    /* ---- QA automation hooks ---- */
+    window.__QA = {
+      state: state, sky: sky, water: water, post: post, scene: scene, camera: camera, renderer: renderer,
+      cityUniforms: cityUniforms, cityMat: cityMat, cityMesh: cityMesh, landMesh: landMesh,
+      view: view,
+      setTime: function (h) { timeHours = h; },
+      setWeather: function (w) { weather = w; },
+      setView: function (name) {
+        var vv = VIEWS[name] || VIEWS.postcard;
+        camera.position.set(vv.pos[0], vv.pos[1], vv.pos[2]);
+        camera.lookAt(new T.Vector3(vv.target[0], vv.target[1], vv.target[2]));
+        camera.fov = vv.fov; camera.updateProjectionMatrix();
+        sky.setShadowFocus(vv.target[0], vv.target[2], vv.shadow || 2200);
+        focusV.set(vv.target[0], 0, vv.target[2]);
+      },
+      setQuality: function (q) {
+        if (!HK.QUALITY[q]) return;
+        quality = q; qcfg = HK.QUALITY[q]; state.quality = q;
+        renderer.setPixelRatio(pixelRatio);
+        sky.setQuality(q);
+        water.setQuality(q);
+        post.setQuality(q);
+        post.resize(window.innerWidth, window.innerHeight, pixelRatio);
+      },
+      report: function () {
+        var e = sky.env;
+        return {
+          quality: quality, time: e.timeHours, weather: e.weather, view: view,
+          night: +e.night.toFixed(3), sunAlt: +e.sunAlt.toFixed(2), sunAz: +e.sunAz.toFixed(2),
+          sunDir: [+e.sunDir.x.toFixed(3), +e.sunDir.y.toFixed(3), +e.sunDir.z.toFixed(3)],
+          moonDir: [+e.moonDir.x.toFixed(3), +e.moonDir.y.toFixed(3), +e.moonDir.z.toFixed(3)],
+          exposure: +e.exposure.toFixed(3), fogDensity: +e.fogDensity.toFixed(6),
+          sunIntensity: +e.sunIntensity.toFixed(3), moonIntensity: +e.moonIntensity.toFixed(3),
+          mist: +e.mist.toFixed(3), rain: +e.rain.toFixed(3), flash: +e.flash.toFixed(3),
+          frames: frames, fps: +fps.toFixed(1), draws: renderer.info.render.calls,
+          tris: renderer.info.render.triangles,
+          renderTarget: post._rtType === T.HalfFloatType ? 'half-float' : 'byte',
+          samples: post._samples,
+          canvas: [renderer.domElement.width, renderer.domElement.height]
+        };
+      },
+      ready: function () { return !!window.__READY__; }
+    };
+    window.__READY__ = false;
+    tick();
+  } catch (err) {
+    fail(err && err.stack ? err.stack : String(err));
+  }
+})();
+</script>
+</body>
+</html>

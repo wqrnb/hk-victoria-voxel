@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>HK VOXEL HARBOUR — life QA</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #05070c; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; left: 12px; bottom: 12px; padding: 8px 12px;
+    font: 11px/1.45 Consolas, monospace; color: #9aa4ad;
+    background: rgba(5, 7, 12, .65); border: 1px solid rgba(61, 224, 255, .22);
+    border-radius: 3px; pointer-events: none; white-space: pre; letter-spacing: .04em;
+  }
+</style>
+</head>
+<body>
+<div id="hud"></div>
+<!-- QA harness for js/life.js: three + core + layout + life, placeholder terrain. -->
+<script src="../vendor/three.min.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/life.js"></script>
+<script>
+(function () {
+  'use strict';
+  var U = HK.Util, L = HK.Layout;
+  var P = U.urlParams();
+  var quality = P.quality || 'medium';
+  var timeHours = P.time !== undefined ? parseFloat(P.time) : 18.6;
+  var view = P.view || 'harbour';
+  var W = window.innerWidth, H = window.innerHeight;
+
+  /* ------------------------------------------------------- day/night math */
+  function nightFromHour(h) {
+    if (h >= 20.2 || h <= 5.1) return 1;
+    if (h > 13) return U.smoothstep(18.1, 20.2, h);
+    return 1 - U.smoothstep(5.1, 7.3, h);
+  }
+  var night = nightFromHour(timeHours);
+  function c(hexv) { return new THREE.Color(hexv); }
+
+  /* ------------------------------------------------------------- renderer */
+  var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(1);
+  renderer.setSize(W, H);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.shadowMap.enabled = false;
+  document.body.appendChild(renderer.domElement);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, W / H, 0.5, HK.CAMERA_FAR);
+
+  /* --------------------------------------------------------------- sky-ish */
+  var skyTop = night > 0.5 ? c('#04080f') : (night > 0.1 ? c('#2a3040') : c('#7d98ac'));
+  var horizon = night > 0.5 ? c('#0a1018') : (night > 0.1 ? c('#5e4448') : c('#b6b2a4'));
+  var fogColor = horizon.clone();
+  scene.background = skyTop.clone();
+  scene.fog = new THREE.Fog(fogColor, 900, 7200);
+
+  var hemi = new THREE.HemisphereLight(
+    night > 0.5 ? 0x22334e : (night > 0.1 ? 0x6d5c5a : 0xbcd2e0),
+    night > 0.5 ? 0x0a0e14 : 0x4a4238,
+    0.62 - night * 0.22
+  );
+  scene.add(hemi);
+  var sunDir = new THREE.Vector3();
+  (function sun() {
+    var t = (timeHours - 6) / 12 * Math.PI;
+    sunDir.set(Math.cos(t), Math.max(-0.25, Math.sin(t) * 1.05), 0.38).normalize();
+  })();
+  var sunCol = night > 0.55 ? 0x7f92c4 : (night > 0.1 ? 0xffb27a : 0xfff0d8);
+  var sun = new THREE.DirectionalLight(sunCol, 0.95 - night * 0.62);
+  sun.position.copy(sunDir).multiplyScalar(900);
+  scene.add(sun);
+  scene.add(sun.target);
+  // stand-in for HK.Sky's city-glow fill at night
+  if (night > 0.3) scene.add(new THREE.AmbientLight(0x223044, 0.5));
+
+  /* --------------------------------------------- placeholder terrain +
+   * flat water.  Only for QA; the real terrain module owns final ground.
+   * Water cells are pushed to -3 so the water plane covers them. */
+  var groundMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  (function terrain() {
+    var segX = 160, segZ = 80;
+    var geo = new THREE.PlaneGeometry(4000, 2000, segX, segZ);
+    geo.rotateX(-Math.PI / 2);
+    var pos = geo.attributes.position;
+    var colors = new Float32Array(pos.count * 3);
+    var urban = [0.205, 0.210, 0.225], urban2 = [0.175, 0.180, 0.195], green = [0.145, 0.190, 0.130],
+        rock = [0.265, 0.260, 0.245], prom = [0.430, 0.375, 0.300], hi = [0.305, 0.300, 0.285];
+    for (var i = 0; i < pos.count; i++) {
+      var x = pos.getX(i), z = pos.getZ(i);
+      var h = L.terrainHeight(x, z);
+      if (h < 0) { pos.setY(i, -3); colors[i * 3] = 0.05; colors[i * 3 + 1] = 0.09; colors[i * 3 + 2] = 0.11; continue; }
+      pos.setY(i, h);
+      var sd = L.shoreDistance(x, z);
+      var col;
+      if (sd < 11) col = prom;
+      else if (h < 5) col = (U.vnoise2(x * 0.05, z * 0.05) > 0.5 ? urban : urban2);
+      else if (h < 45) col = green;
+      else col = (h > 140 ? hi : rock);
+      var j = 0.9 + U.vnoise2(x * 0.31, z * 0.31) * 0.2;
+      colors[i * 3] = col[0] * j; colors[i * 3 + 1] = col[1] * j; colors[i * 3 + 2] = col[2] * j;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+    var mesh = new THREE.Mesh(geo, groundMat);
+    mesh.matrixAutoUpdate = false;
+    scene.add(mesh);
+  })();
+
+  /* road strips so traffic placement can be judged in QA */
+  (function roads() {
+    var b = new HK.Batch(HK.ATTRS_COLOR);
+    function strip(pts, width, color, step) {
+      var total = L.polylineLength(pts);
+      for (var d = 0; d < total; d += step) {
+        var p0 = L.polylinePointAtDistance(pts, d);
+        var p1 = L.polylinePointAtDistance(pts, Math.min(total, d + step));
+        var h0 = L.terrainHeight(p0.x, p0.z); if (h0 < 0) continue;
+        var h1 = L.terrainHeight(p1.x, p1.z); if (h1 < 0) continue;
+        var dx = p1.x - p0.x, dz = p1.z - p0.z, len = Math.hypot(dx, dz) || 1;
+        dx /= len; dz /= len;
+        var nx = -dz, nz = dx, w = width * 0.5;
+        var y0 = h0 + 0.07, y1 = h1 + 0.07;
+        b.addQuad(
+          [p0.x + nx * w, y0, p0.z + nz * w], [p1.x + nx * w, y1, p1.z + nz * w],
+          [p1.x - nx * w, y1, p1.z - nz * w], [p0.x - nx * w, y0, p0.z - nz * w],
+          0, 1, 0, color);
+      }
+    }
+    var asphalt = [0.105, 0.110, 0.120];
+    for (var i = 0; i < L.ROADS.length; i++) {
+      if (L.ROADS[i].type === 'tunnel') continue;
+      strip(L.ROADS[i].pts, L.ROADS[i].width, asphalt, 12);
+    }
+    strip(L.TRAM_ROUTE, 7, [0.085, 0.095, 0.100], 12);
+    if (b.vcount) {
+      var mesh = new THREE.Mesh(b.build(), new THREE.MeshLambertMaterial({ vertexColors: true }));
+      mesh.matrixAutoUpdate = false;
+      scene.add(mesh);
+    }
+  })();
+
+  /* crude landmark block-out: lets QA judge scale (real landmarks: lead module) */
+  (function landmarkBlocks() {
+    var box = new THREE.BoxGeometry(1, 1, 1);
+    box.translate(0, 0.5, 0);
+    var items = [];
+    for (var id in L.LANDMARKS) {
+      var lm = L.LANDMARKS[id];
+      if (!lm || lm.w <= 2 || lm.h < 4) continue;
+      var gy = L.terrainHeight(lm.x, lm.z);
+      if (gy < 0) continue;
+      items.push({ x: lm.x, y: gy, z: lm.z, w: lm.w, h: lm.h, d: lm.d });
+    }
+    var mat = new THREE.MeshLambertMaterial({ color: 0x565f68 });
+    var inst = new THREE.InstancedMesh(box, mat, items.length);
+    var d = new THREE.Object3D();
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      d.position.set(it.x, it.y, it.z);
+      d.scale.set(it.w, it.h, it.d);
+      d.updateMatrix();
+      inst.setMatrixAt(i, d.matrix);
+    }
+    inst.instanceMatrix.needsUpdate = true;
+    inst.frustumCulled = false;
+    scene.add(inst);
+  })();
+
+  (function water() {
+    var geo = new THREE.PlaneGeometry(9000, 6000, 1, 1);
+    geo.rotateX(-Math.PI / 2);
+    var mat = new THREE.MeshLambertMaterial({ color: night > 0.5 ? 0x050d12 : 0x0c2830 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0, 0, 0);
+    scene.add(mesh);
+  })();
+
+  /* ---------------------------------------------------------------- lights */
+  var env = {
+    night: night,
+    timeHours: timeHours,
+    weather: 'clear',
+    sunDir: sunDir,
+    sunColor: sunCol,
+    fogColor: fogColor,
+    cityGlow: c(night > 0.5 ? '#3a2030' : '#000000'),
+    exposure: 1.0
+  };
+  var state = {
+    timeHours: timeHours,
+    night: night,
+    weather: 'clear',
+    quality: quality,
+    paused: false,
+    layers: { traffic: true, ferries: true, people: true, neon: true, labels: true, aircraft: true }
+  };
+  if (P.layer) {
+    var keep = P.layer.split(',');
+    for (var lk in state.layers) state.layers[lk] = keep.indexOf(lk) >= 0 || lk === 'labels';
+  }
+
+  /* --------------------------------------------------------------- cameras */
+  var VIEWS = {
+    harbour:  { pos: [-60, 128, -520], tgt: [-140, 62, 330], fov: 42 },
+    tst:      { pos: [-430, 76, 120],  tgt: [-150, 30, -292], fov: 46 },
+    peak:     { pos: [-330, 315, 880], tgt: [-110, 42, 240], fov: 40 },
+    street:   { pos: [-96, 7, -440],   tgt: [-96, 5, -610], fov: 55 },
+    boats:    { pos: [-300, 11, 100],  tgt: [-160, 6, 250], fov: 45 },
+    ferry:    { pos: [-240, 9, 70],    tgt: [-180, 5, -90], fov: 40 },
+    overview: { pos: [700, 300, -700], tgt: [-60, 30, 120], fov: 46 },
+    tram:     { pos: [-330, 7, 306],   tgt: [-80, 7, 322], fov: 52 },
+    walk:     { pos: [10, 2.4, -282],  tgt: [-180, 40, 300], fov: 62 },
+    close:    { pos: [-100, 3, -400],  tgt: [-96, 2, -470], fov: 66 },
+    tramclose:{ pos: [-300, 4.5, 292], tgt: [-120, 3.5, 304], fov: 52 },
+    prom:     { pos: [-140, 3.2, 332], tgt: [80, 10, 308], fov: 55 },
+    ferryclose:{ pos: [-232, 6, 46],   tgt: [-186, 4, -70], fov: 46 },
+    skyline:  { pos: [-500, 70, -300], tgt: [-60, 85, 380], fov: 40 },
+    cinematic:{ pos: [-200, 130, -520], tgt: [-100, 70, 350], fov: 40 }
+  };
+  var V = VIEWS[view] || VIEWS.harbour;
+  camera.fov = V.fov || 45;
+  camera.position.set(V.pos[0], V.pos[1], V.pos[2]);
+  camera.lookAt(V.tgt[0], V.tgt[1], V.tgt[2]);
+  camera.updateProjectionMatrix();
+  if (P.fov) { camera.fov = parseFloat(P.fov); camera.updateProjectionMatrix(); }
+
+  /* ------------------------------------------------------------- life layer */
+  var life = HK.Life.create({ scene: scene, renderer: renderer, quality: quality, layout: L });
+  var frames = 0;
+  var last = performance.now();
+  var hud = document.getElementById('hud');
+
+  function loop(now) {
+    var dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    life.update(dt, state, camera, env);
+    renderer.render(scene, camera);
+    frames++;
+    if (frames === 5) window.__READY__ = true;
+    if (P.show === '1' && frames === 8) life.triggerShow();
+    if (frames % 10 === 0) {
+      var st = life.getStats();
+      window.__STATS__ = {
+        calls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        points: renderer.info.render.points,
+        quality: st.quality,
+        traffic: st.traffic, trams: st.trams, people: st.people,
+        boats: st.boats, birds: st.birds, lights: st.lights,
+        wakes: st.wakes, beams: st.beams, fireworks: st.fireworks,
+        night: +st.night.toFixed(3), show: st.showActive
+      };
+      hud.textContent = JSON.stringify(window.__STATS__);
+    }
+    requestAnimationFrame(loop);
+  }
+  window.addEventListener('resize', function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  /* ------------------------------------------------------------- QA hooks */
+  window.__QA__ = {
+    life: life, scene: scene, camera: camera, renderer: renderer,
+    env: env, state: state, views: VIEWS,
+    setTime: function (h) {
+      state.timeHours = h; env.timeHours = h;
+      var n = nightFromHour(h);
+      state.night = n; env.night = n;
+    },
+    setView: function (name) {
+      var v = VIEWS[name]; if (!v) return;
+      camera.fov = v.fov || 45; camera.position.set(v.pos[0], v.pos[1], v.pos[2]);
+      camera.lookAt(v.tgt[0], v.tgt[1], v.tgt[2]); camera.updateProjectionMatrix();
+    },
+    triggerShow: function () { return life.triggerShow(); },
+    stats: function () { return window.__STATS__; }
+  };
+  HK.log('life QA ready: quality=' + quality + ' time=' + timeHours + ' view=' + view);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Terrain QA</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#0a1016}canvas{display:block}</style></head>
+<body>
+<script src="../vendor/three.min.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/terrain.js"></script>
+<script>
+(async function () {
+  var params = HK.Util.urlParams();
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9fb7c4);
+  var camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 1, 8000);
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(1);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(0xbfd4e0, 0x3a3630, 0.9));
+  var sun = new THREE.DirectionalLight(0xffe2b8, 2.0);
+  sun.position.set(-1200, 900, -800);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera; sc.left = -2200; sc.right = 2200; sc.top = 1600; sc.bottom = -1600; sc.near = 100; sc.far = 5000;
+  scene.add(sun);
+  var water = new THREE.Mesh(new THREE.PlaneGeometry(9000, 6000), new THREE.MeshStandardMaterial({ color: 0x29555a, roughness: 0.3, metalness: 0.2 }));
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = 0;
+  scene.add(water);
+
+  var t0 = performance.now();
+  var progress = [];
+  var world = await HK.Terrain.build(HK.Layout, {}, function (p, label) { if (progress.length < 6 || progress[progress.length - 1] !== p) progress.push(p); });
+  var t1 = performance.now();
+  scene.add(world.group);
+  window.__BUILD_MS__ = Math.round(t1 - t0);
+  window.__PROGRESS__ = progress;
+  window.__INFO__ = {
+    buildMs: Math.round(t1 - t0),
+    quads: world.quads,
+    vertices: world.vertices,
+    terrainTris: world.mesh.geometry.index.count / 3,
+    waterMask: !!world.shoreMask
+  };
+
+  var view = params.view || 'oblique';
+  if (view === 'top') {
+    camera.position.set(0, 2600, 0.1);
+    camera.up.set(0, 0, -1);
+    camera.lookAt(0, 0, 0);
+  } else if (view === 'harbour') {
+    camera.position.set(-200, 130, -560);
+    camera.lookAt(0, 40, 300);
+  } else if (view === 'west') {
+    camera.position.set(-1400, 420, 900);
+    camera.lookAt(-600, 0, -200);
+  } else if (view === 'roads') {
+    camera.position.set(-900, 260, 60);
+    camera.lookAt(-150, 0, 100);
+  } else {
+    camera.position.set(1900, 680, 1250);
+    camera.lookAt(-300, 0, -150);
+  }
+
+  var frames = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+    if (++frames === 4) window.__READY__ = true;
+  }
+  animate();
+  window.addEventListener('resize', function () {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+})();
+</script>
+</body></html>

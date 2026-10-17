@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>City QA</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#0a1016}canvas{display:block}</style></head>
+<body>
+<script src="../vendor/three.min.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/terrain.js"></script>
+<script src="../js/landmarkkit.js"></script>
+<script src="../js/buildings.js"></script>
+<script>
+(async function () {
+  var params = HK.Util.urlParams();
+  var scene = new THREE.Scene();
+  var night = params.night === '1';
+  scene.background = new THREE.Color(night ? 0x0a1624 : 0xa9c0cc);
+  scene.fog = new THREE.FogExp2(night ? 0x0a1624 : 0xa9c0cc, 0.00016);
+  var camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.5, 16000);
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(1);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.92;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(night ? 0x2a3d55 : 0xbfd4e0, night ? 0x0a0c10 : 0x4a443a, night ? 0.7 : 1.0));
+  var sun = new THREE.DirectionalLight(night ? 0x8fa8d0 : 0xffe0b2, night ? 0.3 : 1.55);
+  sun.position.set(-1200, night ? 800 : 700, -900);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera; sc.left = -2400; sc.right = 2400; sc.top = 1800; sc.bottom = -1800; sc.near = 100; sc.far = 6000;
+  scene.add(sun);
+  scene.add(sun.target);
+  sun.target.position.set(0, 0, 0);
+
+  var water = new THREE.Mesh(new THREE.PlaneGeometry(12000, 8000), new THREE.MeshStandardMaterial({ color: night ? 0x0c2226 : 0x29555a, roughness: 0.25, metalness: 0.35 }));
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = 0;
+  scene.add(water);
+
+  var t0 = performance.now();
+  var world = await HK.Terrain.build(HK.Layout, {}, function () {});
+  var t1 = performance.now();
+  scene.add(world.group);
+  var city = HK.Buildings.build(world, HK.Layout);
+  var t2 = performance.now();
+  var group = HK.Buildings.finalize(world);
+  scene.add(group);
+  HK.Buildings.update(0, { night: night ? 1 : 0, horizonColor: new THREE.Color(night ? 0x1a2c40 : 0xa9c0cc) });
+  var t3 = performance.now();
+
+  var view = params.view || 'skyline';
+  if (view === 'top') {
+    camera.position.set(0, 2100, 0.1);
+    camera.up.set(0, 0, -1);
+    camera.lookAt(0, 0, 0);
+  } else if (view === 'close') {
+    camera.position.set(20, 9, -352);
+    camera.lookAt(-120, 42, 330);
+  } else if (view === 'cwb') {
+    camera.position.set(700, 150, 40);
+    camera.lookAt(500, 20, 400);
+  } else if (view === 'west') {
+    camera.position.set(-1500, 170, 300);
+    camera.lookAt(-950, 60, -420);
+  } else {
+    camera.position.set(-120, 150, -620);
+    camera.lookAt(-90, 52, 350);
+  }
+
+  var frames = 0;
+  var stats = {};
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+    if (++frames === 3) {
+      stats = {
+        buildTerrainMs: Math.round(t1 - t0),
+        buildCityMs: Math.round(t2 - t1),
+        finalizeMs: Math.round(t3 - t2),
+        buildings: HK.Buildings.stats ? HK.Buildings.stats.placed : -1,
+        colliders: city.colliders.length,
+        cityQuads: city.stats.quads,
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        geometryMemory: renderer.info.memory.geometries
+      };
+      window.__INFO__ = stats;
+      window.__READY__ = true;
+    }
+  }
+  animate();
+  window.addEventListener('resize', function () {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+})();
+</script>
+</body></html>

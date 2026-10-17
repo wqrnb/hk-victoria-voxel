@@ -1,0 +1,361 @@
+[
+  {
+    "id": "m-time-dawn",
+    "url": "index.html?qa=1&quality=low&time=6.05&weather=clear",
+    "out": "tmp/qa/m-time-dawn.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-time-noon",
+    "url": "index.html?qa=1&quality=low&time=12.5&weather=clear",
+    "out": "tmp/qa/m-time-noon.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-time-golden",
+    "url": "index.html?qa=1&quality=low&time=18.55&weather=clear",
+    "out": "tmp/qa/m-time-golden.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-time-blue",
+    "url": "index.html?qa=1&quality=low&time=19.35&weather=clear",
+    "out": "tmp/qa/m-time-blue.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-time-night",
+    "url": "index.html?qa=1&quality=low&time=21.4&weather=clear",
+    "out": "tmp/qa/m-time-night.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-weather-mist",
+    "url": "index.html?qa=1&quality=low&time=18.55&weather=mist",
+    "out": "tmp/qa/m-weather-mist.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-weather-rain",
+    "url": "index.html?qa=1&quality=low&time=18.55&weather=rain",
+    "out": "tmp/qa/m-weather-rain.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-rain-night",
+    "url": "index.html?qa=1&quality=low&time=21.0&weather=rain",
+    "out": "tmp/qa/m-rain-night.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-show-night",
+    "url": "index.html?qa=1&quality=low&time=21.4&weather=clear&show=1",
+    "out": "tmp/qa/m-show-night.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 3500,
+    "shotDelay": 1200
+  },
+  {
+    "id": "m-poi-central",
+    "url": "index.html?qa=1&quality=low&time=18.55&poi=central",
+    "out": "tmp/qa/m-poi-central.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-poi-tst",
+    "url": "index.html?qa=1&quality=low&time=18.55&poi=tst",
+    "out": "tmp/qa/m-poi-tst.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-poi-peak",
+    "url": "index.html?qa=1&quality=low&time=18.55&poi=peak",
+    "out": "tmp/qa/m-poi-peak.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-poi-westk",
+    "url": "index.html?qa=1&quality=low&time=18.55&poi=westk",
+    "out": "tmp/qa/m-poi-westk.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-cam-reset",
+    "url": "index.html?qa=1&quality=low&time=18.55&cam=40,140,-120&look=-150,55,338",
+    "out": "tmp/qa/m-cam-reset.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-cam-shore",
+    "url": "index.html?qa=1&quality=low&time=12.5&cam=-60,40,200&look=-150,5,335",
+    "out": "tmp/qa/m-cam-shore.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-cam-central-close",
+    "url": "index.html?qa=1&quality=low&time=17.9&cam=-200,120,150&look=-118,70,400",
+    "out": "tmp/qa/m-cam-central-close.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-cam-icc-close",
+    "url": "index.html?qa=1&quality=low&time=17.9&cam=-700,120,-250&look=-962,140,-424",
+    "out": "tmp/qa/m-cam-icc-close.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-cam-tst-close",
+    "url": "index.html?qa=1&quality=low&time=17.9&cam=-190,25,-280&look=-160,18,-345",
+    "out": "tmp/qa/m-cam-tst-close.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-cam-peak-tower",
+    "url": "index.html?qa=1&quality=low&time=16.5&cam=-200,300,480&look=-282,210,688",
+    "out": "tmp/qa/m-cam-peak-tower.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-fps-central",
+    "url": "index.html?qa=1&quality=low&mode=fps&poi=walk-central&time=12.5&weather=clear",
+    "out": "tmp/qa/m-fps-central.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-fps-peak",
+    "url": "index.html?qa=1&quality=low&mode=fps&poi=walk-peak&time=12.5&weather=clear",
+    "out": "tmp/qa/m-fps-peak.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-cine-1",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=1",
+    "out": "tmp/qa/m-cine-1.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 1200
+  },
+  {
+    "id": "m-cine-2",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=2",
+    "out": "tmp/qa/m-cine-2.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 1200
+  },
+  {
+    "id": "m-cine-3",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=3",
+    "out": "tmp/qa/m-cine-3.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 1200
+  },
+  {
+    "id": "m-cine-4",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=4",
+    "out": "tmp/qa/m-cine-4.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 1200
+  },
+  {
+    "id": "m-cine-5",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=5",
+    "out": "tmp/qa/m-cine-5.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 1200
+  },
+  {
+    "id": "m-cine-6",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=6",
+    "out": "tmp/qa/m-cine-6.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 1200
+  },
+  {
+    "id": "m-cine-7",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=7",
+    "out": "tmp/qa/m-cine-7.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000,
+    "wait": 1200
+  },
+  {
+    "id": "m-photo-deeplink",
+    "url": "index.html?qa=1&quality=low&time=18.55&photo=1",
+    "out": "tmp/qa/m-photo-deeplink.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-boot-rep1",
+    "url": "index.html?qa=1&quality=low&time=18.55",
+    "out": "tmp/qa/m-boot-rep1.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-boot-rep2",
+    "url": "index.html?qa=1&quality=low&time=18.55",
+    "out": "tmp/qa/m-boot-rep2.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "m-dist-stale",
+    "url": "dist/VictoriaHarbour.html?qa=1&quality=low&time=18.55&weather=clear",
+    "out": "tmp/qa/m-dist-stale.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 300000
+  },
+  {
+    "id": "u-loader-1600",
+    "url": "index.html",
+    "out": "tmp/qa/u-loader-1600.png",
+    "w": 1600,
+    "h": 900,
+    "timeout": 420000,
+    "shotDelay": 300,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{}catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  },
+  {
+    "id": "u-sandbox-1600",
+    "url": "index.html",
+    "out": "tmp/qa/u-sandbox-1600.png",
+    "w": 1600,
+    "h": 900,
+    "timeout": 480000,
+    "ready": "document.documentElement.dataset.phase==='intro'",
+    "wait": 800,
+    "shotDelay": 2200,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{var btns=document.querySelectorAll('#hk-intro button');o.buttons=Array.prototype.map.call(btns,function(b){return b.textContent.trim().slice(0,40)});o.introBefore={phase:o.data.phase,cls:(document.getElementById('hk-intro')||{}).className};btns[0].click();o.step1={phase:o.data.phase,started:HK.app.state.started,mode:o.data.mode};}catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  },
+  {
+    "id": "u-sandbox-1280",
+    "url": "index.html",
+    "out": "tmp/qa/u-sandbox-1280.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 480000,
+    "ready": "document.documentElement.dataset.phase==='intro'",
+    "wait": 800,
+    "shotDelay": 2200,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{var btns=document.querySelectorAll('#hk-intro button');o.buttons=Array.prototype.map.call(btns,function(b){return b.textContent.trim().slice(0,40)});o.introBefore={phase:o.data.phase,cls:(document.getElementById('hk-intro')||{}).className};btns[0].click();o.step1={phase:o.data.phase,started:HK.app.state.started,mode:o.data.mode};}catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  },
+  {
+    "id": "u-fps-1280",
+    "url": "index.html",
+    "out": "tmp/qa/u-fps-1280.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 480000,
+    "ready": "document.documentElement.dataset.phase==='intro'",
+    "wait": 800,
+    "shotDelay": 2400,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{var btns=document.querySelectorAll('#hk-intro button');o.buttons=Array.prototype.map.call(btns,function(b){return b.textContent.trim().slice(0,40)});o.introBefore={phase:o.data.phase,cls:(document.getElementById('hk-intro')||{}).className};btns[0].click();o.step1={phase:o.data.phase,started:HK.app.state.started,mode:o.data.mode};btns[1].click();o.step2={phase:o.data.phase,mode:o.data.mode,pointerlock:getComputedStyle(document.getElementById('hk-pointerlock')).display,panel:o.data.panel};}catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  },
+  {
+    "id": "u-cinema-1600",
+    "url": "index.html",
+    "out": "tmp/qa/u-cinema-1600.png",
+    "w": 1600,
+    "h": 900,
+    "timeout": 480000,
+    "ready": "document.documentElement.dataset.phase==='intro'",
+    "wait": 800,
+    "shotDelay": 1800,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{var btns=document.querySelectorAll('#hk-intro button');o.buttons=Array.prototype.map.call(btns,function(b){return b.textContent.trim().slice(0,40)});o.introBefore={phase:o.data.phase,cls:(document.getElementById('hk-intro')||{}).className};btns[0].click();o.step1={phase:o.data.phase,started:HK.app.state.started,mode:o.data.mode};HK.app.actions.setMode('cinematic');HK.UI.updateCinema({index:1,total:8,titleZh:'中環天際線',titleEn:'CENTRAL SKYLINE',caption:'中環天際線 · CENTRAL SKYLINE'});o.step2={mode:o.data.mode,cinema:getComputedStyle(document.getElementById('hk-cinema')).display,title:(document.getElementById('hk-cinema')||{}).textContent.replace(/\\s+/g,' ').trim().slice(0,120)};}catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  },
+  {
+    "id": "u-help-1600",
+    "url": "index.html",
+    "out": "tmp/qa/u-help-1600.png",
+    "w": 1600,
+    "h": 900,
+    "timeout": 480000,
+    "ready": "document.documentElement.dataset.phase==='intro'",
+    "wait": 800,
+    "shotDelay": 1200,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{var btns=document.querySelectorAll('#hk-intro button');o.buttons=Array.prototype.map.call(btns,function(b){return b.textContent.trim().slice(0,40)});o.introBefore={phase:o.data.phase,cls:(document.getElementById('hk-intro')||{}).className};btns[0].click();o.step1={phase:o.data.phase,started:HK.app.state.started,mode:o.data.mode};HK.UI.openHelp();o.step2={help:getComputedStyle(document.getElementById('hk-help')).display,overlayOpen:HK.UI.isOverlayOpen()};}catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  },
+  {
+    "id": "u-photo-1600",
+    "url": "index.html",
+    "out": "tmp/qa/u-photo-1600.png",
+    "w": 1600,
+    "h": 900,
+    "timeout": 480000,
+    "ready": "document.documentElement.dataset.phase==='intro'",
+    "wait": 800,
+    "shotDelay": 1200,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{var btns=document.querySelectorAll('#hk-intro button');o.buttons=Array.prototype.map.call(btns,function(b){return b.textContent.trim().slice(0,40)});o.introBefore={phase:o.data.phase,cls:(document.getElementById('hk-intro')||{}).className};btns[0].click();o.step1={phase:o.data.phase,started:HK.app.state.started,mode:o.data.mode};HK.app.actions.togglePhoto();o.step2={photo:o.data.photo,photoEl:getComputedStyle(document.getElementById('hk-photo')).display};}catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  },
+  {
+    "id": "u-flow-1280",
+    "url": "index.html",
+    "out": "tmp/qa/u-flow-1280.png",
+    "w": 1280,
+    "h": 720,
+    "timeout": 480000,
+    "ready": "document.documentElement.dataset.phase==='intro'",
+    "wait": 800,
+    "shotDelay": 3200,
+    "eval": "(function(){var o=(\n  function(){\n    var HK=window.HK;\n    function vis(id){var e=document.getElementById(id);if(!e)return 'missing';var s=getComputedStyle(e);return {d:s.display,v:s.visibility,o:s.opacity,c:e.className};}\n    var s=(HK&&HK.app&&HK.app.state)||{};\n    var c=HK&&HK.app&&HK.app.controls&&HK.app.controls.cine;\n    var cx=HK&&HK.app&&HK.app.camera;\n    return {\n      err: window.__BOOT_ERROR__||null,\n      data: Object.assign({}, document.documentElement.dataset),\n      state:{mode:s.mode,time:s.timeHours,weather:s.weather,quality:s.quality,started:s.started,photo:!!s.photo,paused:!!s.paused,audio:!!s.audio,fps:s.fps,night:!!s.night,timeAuto:!!s.timeAuto,timeSpeed:s.timeSpeed,player:s.player||null,layerCount:s.layers?Object.keys(s.layers).filter(function(k){return s.layers[k]}).length:-1},\n      parts:{post:!!(HK&&HK.app&&HK.app.post),sky:!!(HK&&HK.app&&HK.app.sky),water:!!(HK&&HK.app&&HK.app.water),life:!!(HK&&HK.app&&HK.app.life),props:!!(HK&&HK.app&&HK.app.props),controls:!!(HK&&HK.app&&HK.app.controls),ui:!!window.HK.UI,audio:!!window.HK.Audio},\n      camera: cx?{x:+cx.position.x.toFixed(1),y:+cx.position.y.toFixed(1),z:+cx.position.z.toFixed(1),fov:cx.fov}:null,\n      canvas:(function(){var cc=document.querySelector('#hk-stage canvas');return cc?{w:cc.width,h:cc.height,cssW:cc.clientWidth,cssH:cc.clientHeight}:null;})(),\n      cine: c?{index:c.index,total:(c.shots||[]).length,active:!!c.active,t:+(c.t||0).toFixed(2)}:null,\n      overlays:{pointerlock:vis('hk-pointerlock'),photo:vis('hk-photo'),help:vis('hk-help'),cinema:vis('hk-cinema'),fpshud:vis('hk-fpshud'),panel:vis('hk-panel'),intro:vis('hk-intro'),loader:vis('hk-loader')},\n      text:{clock:(document.getElementById('hk-clock')||{}).textContent||null,weather:(document.getElementById('hk-weather-zh')||{}).textContent||null,quality:(document.getElementById('hk-quality-badge')||{}).textContent||null,phase:(document.getElementById('hk-phase-zh')||{}).textContent||null,district:(document.getElementById('hk-district-zh')||{}).textContent||null,alt:(document.getElementById('hk-alt')||{}).textContent||null,cineTitle:((document.getElementById('hk-cinema')||{}).textContent||'').replace(/\\s+/g,' ').trim().slice(0,180)||null},\n      webgl2: !!(document.createElement('canvas').getContext('webgl2')),\n      info: window.__INFO__||null\n    };\n  }\n)();try{var btns=document.querySelectorAll('#hk-intro button');o.buttons=Array.prototype.map.call(btns,function(b){return b.textContent.trim().slice(0,40)});o.introBefore={phase:o.data.phase,cls:(document.getElementById('hk-intro')||{}).className};btns[0].click();o.step1={phase:o.data.phase,started:HK.app.state.started,mode:o.data.mode};\n    function snap(k,extra){o[k]=Object.assign({phase:o.data.phase,mode:o.data.mode,panel:o.data.panel,photo:o.data.photo,quality:o.data.quality,weather:o.data.weather,night:o.data.night,stateMode:HK.app.state.mode,started:HK.app.state.started,player:HK.app.state.player?{x:+HK.app.state.player.x.toFixed(1),y:+HK.app.state.player.y.toFixed(1),z:+HK.app.state.player.z.toFixed(1),district:HK.app.state.player.districtZh}:null},extra||{});}\n    try{HK.app.actions.setMode('fps');}catch(e){o.errFps=String(e);} snap('t_fps',{pointerlock:getComputedStyle(document.getElementById('hk-pointerlock')).display,fpshud:getComputedStyle(document.getElementById('hk-fpshud')).display});\n    try{HK.app.actions.setMode('cinematic');}catch(e){o.errCine=String(e);} snap('t_cinema',{cinema:getComputedStyle(document.getElementById('hk-cinema')).display});\n    try{HK.app.actions.nextCinematic();HK.app.actions.prevCinematic();}catch(e){o.errCineNav=String(e);}\n    try{HK.app.actions.setMode('orbit');}catch(e){o.errOrbit=String(e);} snap('t_orbit');\n    try{HK.app.actions.setTime(21.4);}catch(e){o.errTime=String(e);} snap('t_time',{clock:(document.getElementById('hk-clock')||{}).textContent});\n    try{HK.app.actions.setWeather('rain');}catch(e){o.errWeather=String(e);} snap('t_weather');\n    try{HK.app.actions.setQuality('medium');}catch(e){o.errQuality=String(e);} snap('t_quality',{canvas:(function(){var c=document.querySelector('#hk-stage canvas');return c?{w:c.width,h:c.height}:null})()});\n    try{HK.app.actions.setLayer('traffic',false);o.layerOff=HK.app.state.layers.traffic;HK.app.actions.setLayer('traffic',true);o.layerOn=HK.app.state.layers.traffic;}catch(e){o.errLayer=String(e);}\n    try{HK.app.actions.teleport('walk-central');}catch(e){o.errTeleport=String(e);} snap('t_teleport');\n    try{HK.app.actions.togglePhoto();}catch(e){o.errPhoto=String(e);} snap('t_photo',{photoEl:getComputedStyle(document.getElementById('hk-photo')).display,overlayOpen:HK.UI.isOverlayOpen()});\n    try{HK.app.actions.togglePhoto();}catch(e){o.errPhoto2=String(e);}\n    try{HK.UI.openHelp();}catch(e){o.errHelp=String(e);} o.helpOpen={display:getComputedStyle(document.getElementById('hk-help')).display,open:HK.UI.isOverlayOpen()};\n    try{HK.UI.closeHelp();}catch(e){o.errHelp2=String(e);} o.helpClosed={display:getComputedStyle(document.getElementById('hk-help')).display,open:HK.UI.isOverlayOpen()};\n    try{o.screenshotResult=HK.UI.screenshot();}catch(e){o.errShot=String(e);}\n    try{HK.app.actions.setAudio(true);o.audioOn=HK.app.state.audio;HK.app.actions.setAudio(false);o.audioOff=HK.app.state.audio;}catch(e){o.errAudio=String(e);}\n    try{HK.app.actions.togglePause();o.paused1=HK.app.state.paused;HK.app.actions.togglePause();o.paused2=HK.app.state.paused;}catch(e){o.errPause=String(e);}\n    try{HK.UI.toast({zh:'QA 測試',en:'QA TOAST'});o.toastSent=true;}catch(e){o.errToast=String(e);}\n    try{HK.app.actions.setTimeAuto(true);HK.app.actions.setTimeSpeed(1.0);o.timeAutoOn=HK.app.state.timeAuto;o.timeBefore=HK.app.state.timeHours;}catch(e){o.errAuto=String(e);}\n    try{HK.app.actions.resetCamera();}catch(e){o.errReset=String(e);}\n  }catch(e){o.stepError=String(e&&e.stack||e);}return JSON.stringify(o);})()"
+  }
+]

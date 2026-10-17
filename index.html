@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="hk-html" data-phase="loading" data-mode="orbit" data-panel="open" data-photo="off" data-quality="high" data-weather="clear" data-audio="off" data-night="0">
+<head>
+<meta charset="utf-8">
+<title>維多利亞港 · 體素數字孿生 — VICTORIA HARBOUR · VOXEL DIGITAL TWIN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05070c">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="香港維多利亞港的體素數字孿生 — 沙盤、漫遊與電影模式。 A voxel digital twin of Hong Kong's Victoria Harbour: sandbox, walk and cinematic modes. Zero external assets.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2305070c'/%3E%3Cpath d='M16 5l10 5.5v11L16 27 6 21.5v-11z' fill='none' stroke='%233de0ff' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="hk-body">
+
+<!-- ======================================================================
+     HK UI SHELL — mount structure
+       #hk-stage  : main.js appends renderer.domElement here (3D world)
+       #hk-hud    : non-cinematic chrome (topbar, panel, dock, fps hud, tools)
+       #hk-cinema : cinematic-mode overlay (letterbox, shot titles)
+       #hk-intro  : title card over the live render
+       #hk-help   : field guide modal
+       #hk-loader : first-paint loader, always topmost
+     QA snapshot page is generated from this block, keep markers.
+     ====================================================================== -->
+<!-- ===== HK UI SHELL START ===== -->
+
+<!-- 3D stage --------------------------------------------------------------->
+<div id="hk-stage" class="hk-stage" aria-hidden="true"></div>
+
+<!-- atmospheric CSS grade over the render ---------------------------------->
+<div id="hk-vignette" class="hk-vignette" aria-hidden="true"></div>
+
+<!-- ======================== HUD ========================================== -->
+<div id="hk-hud" class="hk-hud">
+
+  <!-- top bar -->
+  <header id="hk-topbar" class="hk-topbar" role="banner">
+    <div class="tb-left">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M16 2 30 9.5v13L16 30 2 22.5v-13Z" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".45"/>
+          <path d="M16 8 24 12v8l-8 4-8-4v-8Z" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".8"/>
+          <path d="M16 12.4 19.6 14.2v3.6L16 19.6l-3.6-1.8v-3.6Z" fill="currentColor"/>
+        </svg>
+        <div class="brand-text">
+          <span class="brand-zh">維多利亞港</span>
+          <span class="brand-en mono">VICTORIA HARBOUR</span>
+        </div>
+      </div>
+      <div class="tb-sep hide-md" aria-hidden="true"></div>
+      <div class="tb-coords mono hide-md">22°17′N · 114°10′E<br><span>HONG KONG</span></div>
+    </div>
+
+    <div class="tb-right">
+      <div class="tb-clock">
+        <span id="hk-clock" class="clock mono">18:37</span>
+        <span class="clock-label mono">HKT</span>
+      </div>
+      <div class="tb-phase hide-md">
+        <span id="hk-phase-zh" class="phase-zh">黃昏</span>
+        <span id="hk-phase-en" class="phase-en mono">GOLDEN HOUR</span>
+      </div>
+      <div class="tb-sep hide-sm" aria-hidden="true"></div>
+      <div class="tb-item tb-weather" title="天氣 Weather">
+        <span class="we-icon" id="hk-weather-icon" aria-hidden="true"></span>
+        <span class="tb-weather-text">
+          <span id="hk-weather-zh">晴朗</span>
+          <span id="hk-weather-en" class="mono">CLEAR</span>
+        </span>
+      </div>
+      <div class="tb-item tb-quality" title="畫質 Quality">
+        <span class="tb-key mono">Q</span>
+        <span id="hk-quality-badge">高 · HIGH</span>
+      </div>
+      <div class="tb-item tb-fps" title="每秒幀數 FPS">
+        <span class="fps-spark" id="hk-fps-spark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span id="hk-fps" class="fps-num mono">60</span>
+        <span class="fps-unit mono">FPS</span>
+      </div>
+      <button id="hk-audio-btn" class="tb-icon" type="button" data-act="audio" aria-pressed="false" aria-label="音效開關 SOUND">
+        <span class="ico-snd-on" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 9v6h3.2L12 18V6L7.2 9H4Z"/><path d="M15.4 8.6a4.6 4.6 0 0 1 0 6.8M17.8 6.2a8 8 0 0 1 0 11.6"/></svg>
+        </span>
+        <span class="ico-snd-off" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 9v6h3.2L12 18V6L7.2 9H4Z"/><path d="m16 9 5 6m0-6-5 6"/></svg>
+        </span>
+      </button>
+      <button class="tb-icon tb-help-btn" type="button" data-act="help" aria-label="操作指南 HELP">
+        <span class="help-glyph" aria-hidden="true">?</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- left sandbox panel -->
+  <aside id="hk-panel" class="hk-panel" aria-label="沙盤控制 SANDBOX CONTROLS">
+    <div class="panel-head">
+      <div class="panel-title">
+        <span class="panel-kicker mono">SANDBOX · 01</span>
+        <h2>沙盤控制</h2>
+        <span class="panel-sub mono">SAND TABLE</span>
+      </div>
+      <button class="panel-collapse" type="button" data-act="panel" aria-label="收合面板 COLLAPSE PANEL" aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>
+      </button>
+    </div>
+
+    <div class="panel-scroll">
+      <section class="panel-sec sec-time">
+        <div class="sec-head"><span class="sec-zh">時刻</span><span class="sec-en mono">TIME OF DAY</span><span class="sec-val mono" id="hk-panel-clock">18:37</span></div>
+        <div class="timebar" id="hk-timebar" role="slider" tabindex="0" aria-label="時刻 TIME OF DAY" aria-valuemin="0" aria-valuemax="24" aria-valuenow="18.62" aria-valuetext="18:37">
+          <div class="timebar-track">
+            <div class="timebar-grad" aria-hidden="true"></div>
+            <div class="timebar-ticks" id="hk-timebar-ticks" aria-hidden="true"></div>
+            <div class="timebar-mark" id="hk-timebar-mark" aria-hidden="true"></div>
+            <div class="timebar-thumb" id="hk-timebar-thumb" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="preset-grid" id="hk-presets"></div>
+        <div class="time-auto-row">
+          <button class="auto-btn" type="button" data-act="time-auto" aria-pressed="false">
+            <span class="auto-ico" aria-hidden="true">
+              <svg class="ico-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5 18.5 12 8 18.5Z"/></svg>
+              <svg class="ico-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.4v14H7Zm6.6 0H17v14h-3.4Z"/></svg>
+            </span>
+            <span class="auto-label"><span>自動循環</span><span class="auto-en mono">AUTO CYCLE</span></span>
+          </button>
+          <button class="speed-btn" type="button" data-act="time-speed" aria-label="切換時間流逝速度 CYCLE TIME SPEED">
+            <span id="hk-speed" class="mono">0.12</span><span class="mono speed-unit">h/s</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel-sec sec-weather">
+        <div class="sec-head"><span class="sec-zh">天氣</span><span class="sec-en mono">ATMOSPHERE</span></div>
+        <div class="seg-row seg-3" id="hk-weather" role="group" aria-label="天氣 WEATHER"></div>
+      </section>
+
+      <section class="panel-sec sec-quality">
+        <div class="sec-head"><span class="sec-zh">畫質</span><span class="sec-en mono">QUALITY</span></div>
+        <div class="seg-row seg-4" id="hk-quality" role="group" aria-label="畫質 QUALITY"></div>
+      </section>
+
+      <section class="panel-sec sec-layers">
+        <div class="sec-head"><span class="sec-zh">圖層</span><span class="sec-en mono">LAYERS</span></div>
+        <div class="layer-list" id="hk-layers"></div>
+      </section>
+    </div>
+
+    <section class="panel-pois" aria-label="地標 POINTS OF INTEREST">
+      <div class="sec-head"><span class="sec-zh">地標</span><span class="sec-en mono">POINTS OF INTEREST</span><span class="sec-val mono" id="hk-poi-count">08</span></div>
+      <div class="poi-list" id="hk-pois" role="list"></div>
+    </section>
+
+    <div class="panel-foot mono">
+      <span>VX <span id="hk-version">1.0.0</span></span>
+      <span id="hk-panel-meta">24 FPS · ACES</span>
+    </div>
+  </aside>
+
+  <!-- re-open tab, only visible when the panel is collapsed -->
+  <button id="hk-panel-tab" class="hk-panel-tab" type="button" data-act="panel" aria-label="展開面板 EXPAND PANEL" aria-expanded="false">
+    沙盤<span>SAND TABLE</span>
+  </button>
+
+  <!-- mode dock -->
+  <nav id="hk-dock" class="hk-dock" aria-label="模式 MODE">
+    <button class="dock-item is-active" type="button" data-act="mode" data-value="orbit" aria-pressed="true">
+      <span class="dock-key mono" aria-hidden="true">1</span>
+      <span class="dock-text"><span class="dock-zh">沙盤</span><span class="dock-en mono">SAND TABLE</span></span>
+      <span class="dock-line" aria-hidden="true"></span>
+    </button>
+    <button class="dock-item" type="button" data-act="mode" data-value="fps" aria-pressed="false">
+      <span class="dock-key mono" aria-hidden="true">2</span>
+      <span class="dock-text"><span class="dock-zh">漫遊</span><span class="dock-en mono">WALK</span></span>
+      <span class="dock-line" aria-hidden="true"></span>
+    </button>
+    <button class="dock-item" type="button" data-act="mode" data-value="cinematic" aria-pressed="false">
+      <span class="dock-key mono" aria-hidden="true">3</span>
+      <span class="dock-text"><span class="dock-zh">電影</span><span class="dock-en mono">CINEMA</span></span>
+      <span class="dock-line" aria-hidden="true"></span>
+    </button>
+  </nav>
+
+  <!-- first-person HUD -->
+  <div id="hk-fpshud" class="hk-fpshud">
+    <div id="hk-crosshair" class="crosshair" aria-hidden="true">
+      <i class="ch-t"></i><i class="ch-b"></i><i class="ch-l"></i><i class="ch-r"></i><i class="ch-dot"></i>
+    </div>
+    <div class="compass" aria-hidden="true">
+      <div class="compass-window">
+        <div class="compass-track" id="hk-compass-track"></div>
+        <div class="compass-caret"></div>
+      </div>
+      <div class="compass-read mono" id="hk-compass-read">018° N</div>
+    </div>
+    <div class="fps-info">
+      <div class="fi-district">
+        <span class="fi-district-zh" id="hk-district-zh">中西區</span>
+        <span class="fi-district-en mono" id="hk-district-en">CENTRAL &amp; WESTERN</span>
+      </div>
+      <div class="fi-stats mono">
+        <span class="fi-item"><span class="fi-key">海拔 ALT</span><span class="fi-val" id="hk-alt">+172 m</span></span>
+        <span class="fi-item"><span class="fi-key">時刻 TIME</span><span class="fi-val" id="hk-clock2">18:37</span></span>
+        <span class="fi-item"><span class="fi-key" id="hk-lock-state">自由視角 FREE LOOK</span></span>
+      </div>
+    </div>
+    <div class="hintbar mono" id="hk-hintbar">
+      <span>WASD <em>移動</em></span><i>·</i>
+      <span>SHIFT <em>奔跑</em></span><i>·</i>
+      <span>SPACE <em>跳躍</em></span><i>·</i>
+      <span>F <em>飛行</em></span><i>·</i>
+      <span>M <em>地圖</em></span><i>·</i>
+      <span>ESC <em>暫停</em></span>
+      <b class="hint-sep" aria-hidden="true"></b>
+      <span>P <em>攝影 PHOTO</em></span>
+    </div>
+  </div>
+
+  <!-- right tool rail -->
+  <div class="hk-toolrail" aria-label="工具 TOOLS">
+    <button class="tool" type="button" data-act="photo" aria-pressed="false" aria-label="攝影模式 PHOTO MODE">
+      <span class="tool-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 8.5h3.4L8 6h8l1.6 2.5H21v11H3Z"/><circle cx="12" cy="13.6" r="3.4"/></svg></span>
+      <span class="tool-label">攝影<span class="mono">PHOTO</span><kbd>P</kbd></span>
+    </button>
+    <button class="tool" type="button" data-act="screenshot" aria-label="截圖儲存 CAPTURE FRAME">
+      <span class="tool-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/><circle cx="12" cy="12" r="3.2"/></svg></span>
+      <span class="tool-label">截圖<span class="mono">CAPTURE</span></span>
+    </button>
+    <button class="tool" type="button" data-act="reset" aria-label="重置視角 RESET CAMERA">
+      <span class="tool-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5"/><path d="M4 4v4.4h4.4"/></svg></span>
+      <span class="tool-label">重置<span class="mono">RESET</span></span>
+    </button>
+  </div>
+
+  <!-- pointer-lock prompt -->
+  <button id="hk-pointerlock" class="hk-pointerlock" type="button" data-act="pointerlock">
+    <span class="pl-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="7" y="3" width="10" height="18" rx="5"/><path d="M12 7v4"/></svg></span>
+    <span class="pl-text"><span class="pl-zh">點擊鎖定視角</span><span class="pl-en mono">CLICK TO CAPTURE MOUSE · ESC TO RELEASE</span></span>
+  </button>
+
+  <!-- photo-mode frame -->
+  <div id="hk-photo" class="hk-photo" aria-hidden="true">
+    <i class="pf-corner pf-tl"></i><i class="pf-corner pf-tr"></i><i class="pf-corner pf-bl"></i><i class="pf-corner pf-br"></i>
+    <div class="pf-top mono"><span>攝影模式 · PHOTO MODE</span><span id="hk-photo-meta">f/2.8 · ISO 100 · ACES</span></div>
+    <div class="pf-bottom mono"><span>P / ESC 退出 · EXIT</span><span>維多利亞港 · VICTORIA HARBOUR</span></div>
+  </div>
+
+  <!-- pointer-lock / mode banner -->
+  <div id="hk-modebanner" class="hk-modebanner" aria-hidden="true">
+    <span class="mb-mark"></span>
+    <span id="hk-modebanner-zh">第一人稱</span>
+    <span id="hk-modebanner-en" class="mono">FIRST PERSON</span>
+  </div>
+
+  <!-- toasts -->
+  <div id="hk-toasts" class="hk-toasts" role="status" aria-live="polite"></div>
+</div>
+
+<!-- screenshot flash — outside the hud so it works in photo / cinematic -->
+<div id="hk-flash" class="hk-flash" aria-hidden="true"></div>
+
+<!-- ======================== CINEMATIC =================================== -->
+<div id="hk-cinema" class="hk-cinema" aria-hidden="true">
+  <div class="cine-bar cine-bar-top" aria-hidden="true">
+    <span class="cine-mode mono">電影模式 · CINEMATIC</span>
+    <span class="cine-count mono"><span id="cine-index">01</span><span class="cine-slash">/</span><span id="cine-total">09</span></span>
+  </div>
+  <div class="cine-bar cine-bar-bottom" aria-hidden="true"></div>
+
+  <div class="cine-titlewrap">
+    <div class="cine-eyebrow mono" id="cine-eyebrow">維多利亞港 · VICTORIA HARBOUR</div>
+    <h2 class="cine-title">
+      <span class="cine-shotno mono" id="cine-shotno">01</span>
+      <span class="cine-zh" id="cine-title-zh">維港晨曦</span>
+      <span class="cine-div" aria-hidden="true"></span>
+      <span class="cine-en" id="cine-title-en">HARBOUR DAWN</span>
+    </h2>
+    <p class="cine-caption" id="cine-caption">城市在潮聲中醒來 · THE CITY WAKES WITH THE TIDE</p>
+  </div>
+
+  <div class="cine-ticks" id="cine-ticks" aria-hidden="true"></div>
+
+  <div class="cine-controls">
+    <button class="cine-btn cine-prev" type="button" data-act="prev" aria-label="上一鏡 PREVIOUS SHOT">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>
+      <span class="cine-btn-zh">上一鏡</span><span class="cine-btn-en mono">PREV</span>
+    </button>
+    <button class="cine-btn is-primary cine-next" type="button" data-act="next" aria-label="下一鏡 NEXT SHOT">
+      <span class="cine-btn-zh">下一鏡</span><span class="cine-btn-en mono">NEXT</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg>
+    </button>
+    <span class="cine-key mono" aria-hidden="true">N</span>
+    <button class="cine-btn cine-exit" type="button" data-act="cinema-exit" aria-label="退出電影模式 EXIT CINEMATIC">
+      <kbd class="mono">ESC</kbd><span class="cine-btn-zh">退出</span><span class="cine-btn-en mono">EXIT</span>
+    </button>
+  </div>
+</div>
+
+<!-- ======================== INTRO ======================================= -->
+<section id="hk-intro" class="hk-intro" aria-label="開始 EXPERIENCE">
+  <div class="intro-scrim" aria-hidden="true"></div>
+  <div class="intro-corner intro-corner-tl" aria-hidden="true"></div>
+  <div class="intro-corner intro-corner-tr" aria-hidden="true"></div>
+  <div class="intro-corner intro-corner-bl" aria-hidden="true"></div>
+  <div class="intro-corner intro-corner-br" aria-hidden="true"></div>
+
+  <div class="intro-main">
+    <div class="intro-kicker">
+      <span class="intro-rule" aria-hidden="true"></span>
+      <span>數碼孿生 · 體素重建</span>
+      <span class="mono">DIGITAL TWIN</span>
+      <span class="intro-rule" aria-hidden="true"></span>
+    </div>
+    <h1 class="intro-title" aria-label="維多利亞港">
+      <span style="--i:0">維</span><span style="--i:1">多</span><span style="--i:2">利</span><span style="--i:3">亞</span><span style="--i:4">港</span>
+    </h1>
+    <div class="intro-en mono">VICTORIA HARBOUR</div>
+    <div class="intro-rule-wide" aria-hidden="true"></div>
+    <div class="intro-sub">體素數字孿生<span class="intro-dot">·</span><span class="mono">VOXEL DIGITAL TWIN</span></div>
+    <div class="intro-cta">
+      <button class="btn-primary" type="button" data-act="enter">
+        <span class="btn-text"><span class="btn-zh">進入沙盤</span><span class="btn-en mono">ENTER SANDBOX</span></span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+      </button>
+      <button class="btn-ghost" type="button" data-act="walk">
+        <span class="btn-text"><span class="btn-zh">直接漫遊</span><span class="btn-en mono">WALK THE CITY</span></span>
+      </button>
+    </div>
+    <div class="intro-hint mono">拖曳探索 · 滾輪縮放<span class="intro-hint-sep">/</span>DRAG TO ORBIT · SCROLL TO ZOOM</div>
+  </div>
+
+  <div class="intro-meta-left">
+    <span class="intro-meta-k mono">HONG KONG</span>
+    <span class="intro-meta-v mono">22°17′N · 114°10′E</span>
+  </div>
+  <div class="intro-meta-right">
+    <span class="intro-meta-k mono">SANDBOX · WALK · CINEMA</span>
+    <span class="intro-meta-v mono">按 1 / 2 / 3 選擇模式</span>
+  </div>
+  <div class="intro-foot mono">
+    <span>© 2026 維港體素計劃 · VICTORIA HARBOUR VOXEL PROJECT</span>
+    <span>ZERO EXTERNAL ASSETS · PROCEDURAL AUDIO</span>
+  </div>
+</section>
+
+<!-- ======================== HELP ======================================== -->
+<div id="hk-help" class="hk-help" role="dialog" aria-modal="true" aria-labelledby="hk-help-title" aria-hidden="true">
+  <button class="help-backdrop" type="button" data-act="help-close" tabindex="-1" aria-label="關閉 CLOSE"></button>
+  <div class="help-panel" role="document">
+    <header class="help-head">
+      <div>
+        <div class="help-kicker mono">FIELD GUIDE · 01</div>
+        <h2 id="hk-help-title">操作指南<span class="help-head-en mono">/ SHORTCUTS</span></h2>
+      </div>
+      <button class="help-close" type="button" data-act="help-close" aria-label="關閉 CLOSE">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+
+    <div class="help-body">
+      <div class="help-col">
+        <section class="help-sec">
+          <h3><span class="mono">01</span>探索 <span class="mono">EXPLORE</span></h3>
+          <dl class="keys">
+            <div><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>移動 <span class="mono">MOVE</span></dd></div>
+            <div><dt><kbd>SHIFT</kbd></dt><dd>奔跑 <span class="mono">SPRINT</span></dd></div>
+            <div><dt><kbd>SPACE</kbd></dt><dd>跳躍 <span class="mono">JUMP</span></dd></div>
+            <div><dt><kbd>F</kbd></dt><dd>飛行 <span class="mono">FLY</span></dd></div>
+            <div><dt><kbd>M</kbd></dt><dd>地圖 / 沙盤 <span class="mono">MAP · SAND TABLE</span></dd></div>
+            <div><dt><kbd>ESC</kbd></dt><dd>暫停 <span class="mono">PAUSE</span></dd></div>
+          </dl>
+        </section>
+        <section class="help-sec">
+          <h3><span class="mono">02</span>模式 <span class="mono">MODES</span></h3>
+          <dl class="keys">
+            <div><dt><kbd>1</kbd></dt><dd>沙盤 <span class="mono">SAND TABLE</span></dd></div>
+            <div><dt><kbd>2</kbd></dt><dd>漫遊 <span class="mono">WALK</span></dd></div>
+            <div><dt><kbd>3</kbd></dt><dd>電影 <span class="mono">CINEMA</span></dd></div>
+            <div><dt><kbd>N</kbd></dt><dd>下一鏡 <span class="mono">NEXT SHOT</span></dd></div>
+          </dl>
+        </section>
+      </div>
+      <div class="help-col">
+        <section class="help-sec">
+          <h3><span class="mono">03</span>視角 <span class="mono">CAMERA</span></h3>
+          <dl class="keys">
+            <div><dt><kbd>DRAG</kbd></dt><dd>環繞 <span class="mono">ORBIT</span></dd></div>
+            <div><dt><kbd>SCROLL</kbd></dt><dd>縮放 <span class="mono">ZOOM</span></dd></div>
+            <div><dt><kbd>RMB</kbd></dt><dd>平移 <span class="mono">PAN</span></dd></div>
+            <div><dt><kbd>P</kbd></dt><dd>攝影模式 <span class="mono">PHOTO MODE</span></dd></div>
+            <div><dt><kbd>H</kbd></dt><dd>本指南 <span class="mono">THIS GUIDE</span></dd></div>
+          </dl>
+        </section>
+        <section class="help-sec help-sec-about">
+          <h3><span class="mono">04</span>關於 <span class="mono">ABOUT</span></h3>
+          <p class="help-about">維多利亞港的體素數字孿生。以程序化幾何重建香港天際線、海港與街區，無外部貼圖、無外部字體、無網路素材。<span class="mono">A VOXEL DIGITAL TWIN OF VICTORIA HARBOUR — RENDERED FROM PURE GEOMETRY, NO EXTERNAL ASSETS.</span></p>
+          <dl class="help-stats">
+            <div><dt>地標 <span class="mono">LANDMARKS</span></dt><dd class="mono" id="hk-stat-landmarks">—</dd></div>
+            <div><dt>地點 <span class="mono">POIS</span></dt><dd class="mono" id="hk-stat-pois">—</dd></div>
+            <div><dt>地區 <span class="mono">DISTRICTS</span></dt><dd class="mono" id="hk-stat-districts">—</dd></div>
+          </dl>
+          <div class="help-credits mono" id="hk-help-credits">THREE.JS r149 · PROCEDURAL WORLD · PROCEDURAL AUDIO</div>
+        </section>
+      </div>
+    </div>
+
+    <footer class="help-foot mono">
+      <span>VX <span id="hk-help-version">1.0.0</span></span>
+      <span class="help-foot-mid">香港 · 維多利亞港 · VICTORIA HARBOUR</span>
+      <span>ESC / H 關閉 · CLOSE</span>
+    </footer>
+  </div>
+</div>
+
+<!-- ======================== LOADER ====================================== -->
+<div id="hk-loader" class="hk-loader" role="status" aria-live="polite" aria-label="正在載入 LOADING">
+  <div class="ld-atmos" aria-hidden="true"></div>
+  <div class="ld-sky" aria-hidden="true">
+    <div class="ld-horizon"></div>
+    <svg id="ld-skyline" class="ld-skyline" viewBox="0 0 1600 520" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <g id="ld-build-back"></g>
+      <g id="ld-build-front"></g>
+    </svg>
+    <div class="ld-glare"></div>
+    <div class="ld-grid"></div>
+    <div class="ld-scan"></div>
+  </div>
+
+  <div class="ld-watermark" aria-hidden="true">港</div>
+
+  <header class="ld-top mono">
+    <span>HONG KONG · VOXEL DIGITAL TWIN</span>
+    <span class="hide-sm">22°17′N · 114°10′E</span>
+    <span>VX 1.0.0</span>
+  </header>
+
+  <div class="ld-center">
+    <div class="ld-kicker mono"><span class="ld-kicker-rule"></span>數碼孿生 · 體素重建<span class="ld-kicker-rule"></span></div>
+    <h1 class="ld-title">維多利亞港</h1>
+    <div class="ld-en mono">VICTORIA HARBOUR</div>
+    <div class="ld-sub">體素數字孿生<span class="ld-sub-dot">·</span><span class="mono">VOXEL DIGITAL TWIN</span></div>
+  </div>
+
+  <footer class="ld-bottom">
+    <div class="ld-status">
+      <div class="ld-status-main">
+        <span class="ld-dot" aria-hidden="true"></span>
+        <span id="ld-status-zh">正在重塑海岸線…</span>
+      </div>
+      <div class="ld-status-en mono" id="ld-status-en">RESHAPING THE COASTLINE</div>
+    </div>
+    <div class="ld-track" role="progressbar" aria-label="載入進度 LOADING PROGRESS" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="ld-fill" id="ld-fill"></div>
+      <div class="ld-shimmer" aria-hidden="true"></div>
+    </div>
+    <div class="ld-meta mono">
+      <span class="ld-pct" id="ld-pct">000%</span>
+      <span class="ld-sep" aria-hidden="true"></span>
+      <span class="ld-label" id="ld-label">維港數字孿生建構中 · BUILDING THE TWIN</span>
+      <span class="ld-sep hide-sm" aria-hidden="true"></span>
+      <span class="hide-sm">ORBIT · WALK · CINEMA</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== HK UI SHELL END ===== -->
+
+<!-- canonical boot order — do not add dependencies or reorder -->
+<script src="vendor/three.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/terrain.js"></script>
+<script src="js/landmarkkit.js"></script>
+<script src="js/buildings.js"></script>
+<script src="js/landmarks-hk.js"></script>
+<script src="js/landmarks-kl.js"></script>
+<script src="js/props.js"></script>
+<script src="js/sky.js"></script>
+<script src="js/water.js"></script>
+<script src="js/post.js"></script>
+<script src="js/life.js"></script>
+<script src="js/controls.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

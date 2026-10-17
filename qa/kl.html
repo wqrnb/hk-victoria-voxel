@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Kowloon Landmarks QA</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#0a1016}canvas{display:block}</style></head>
+<body>
+<script src="../vendor/three.min.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/terrain.js"></script>
+<script src="../js/landmarkkit.js"></script>
+<script src="../js/buildings.js"></script>
+<script src="../js/landmarks-kl.js"></script>
+<script>
+(async function () {
+  var params = HK.Util.urlParams();
+  var night = params.night === '1';
+  var view = params.view || 'wkcd';
+
+  var scene = new THREE.Scene();
+  var skyCol = night ? 0x0a1624 : 0xa9c0cc;
+  scene.background = new THREE.Color(skyCol);
+  scene.fog = new THREE.FogExp2(skyCol, night ? 0.00022 : 0.00016);
+
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(1);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = night ? 1.15 : 1.0;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  var camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 16000);
+
+  scene.add(new THREE.HemisphereLight(night ? 0x2a3d55 : 0xbfd4e0, night ? 0x0a0c10 : 0x4a443a, night ? 0.85 : 1.05));
+  var sun = new THREE.DirectionalLight(night ? 0x8fa8d0 : 0xffe2b8, night ? 0.4 : 2.1);
+  sun.position.set(-1400, night ? 900 : 780, 620);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera;
+  sc.left = -1500; sc.right = 1500; sc.top = 1200; sc.bottom = -1200; sc.near = 100; sc.far = 6000;
+  sc.updateProjectionMatrix();
+  scene.add(sun);
+  scene.add(sun.target);
+  sun.target.position.set(-100, 0, -300);
+  var fill = new THREE.DirectionalLight(night ? 0x33506e : 0xcfe0e8, night ? 0.25 : 0.45);
+  fill.position.set(900, 500, -1400);
+  scene.add(fill);
+
+  var water = new THREE.Mesh(
+    new THREE.PlaneGeometry(12000, 9000),
+    new THREE.MeshStandardMaterial({ color: night ? 0x0b2026 : 0x29555a, roughness: 0.22, metalness: 0.42 })
+  );
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = 0;
+  scene.add(water);
+
+  var t0 = performance.now();
+  var world = await HK.Terrain.build(HK.Layout, {}, function () {});
+  var t1 = performance.now();
+  scene.add(world.group);
+  HK.Buildings.build(world, HK.Layout);
+  var t2 = performance.now();
+  var info = HK.LandmarksKL.build(world, HK.Layout);
+  var t3 = performance.now();
+  var group = HK.Buildings.finalize(world);
+  scene.add(group);
+  HK.Buildings.createMaterial();
+  HK.Buildings.update(0, { night: night ? 1 : 0, horizonColor: new THREE.Color(night ? 0x1a2c40 : 0xa9c0cc) });
+
+  /* ---------------- cameras ---------------- */
+  function cam(px, py, pz, tx, ty, tz, fov, upZ) {
+    camera.position.set(px, py, pz);
+    if (upZ) camera.up.set(0, 0, -1);
+    camera.lookAt(tx, ty, tz);
+    if (fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  }
+  var CAMS = {
+    wkcd:   [-1400, 125, 80, -1040, 82, -372, 46],
+    icc:    [-800, 245, -120, -962, 150, -424, 42],
+    iccnight:[-790, 130, 40, -962, 140, -424, 46],
+    wkcdlow:[-1330, 44, -80, -1110, 26, -340, 54],
+    xiqu:   [-1320, 46, -218, -1234, 22, -344, 50],
+    palace: [-1280, 54, -296, -1184, 20, -422, 52],
+    tst:    [-352, 36, -108, -120, 16, -352, 50],
+    tstclose:[-226, 17, -212, -156, 12, -356, 52],
+    cultural:[-70, 34, -254, -138, 13, -352, 48],
+    avenue: [120, 14, -260, 60, 4, -318, 54],
+    fpswalk: [10, 3.35, -318, 10, 3.15, -240, 62],
+    fpswalk2: [10, 3.35, -318, 54, 2.7, -306, 62],
+    fpsfinal: [10, 3.06, -318, 10, 3.02, -240, 70],
+    fpsfinal2: [10, 3.06, -318, 32, 3.0, -309, 70],
+    fpsfinal3: [-30, 3.06, -320, 40, 3.0, -310, 70],
+    fpswalk3: [-40, 3.6, -322, 20, 2.9, -310, 62],
+    tsteast:[100, 48, -234, 142, 30, -370, 52],
+    clock:  [-224, 22, -274, -182, 13, -340, 50],
+    space:  [-76, 26, -276, -26, 12, -364, 52],
+    peninsula:[-386, 62, -264, -284, 22, -388, 52],
+    hunghom: [222, 62, -110, 440, 24, -410, 52],
+    coliseum:[282, 48, -296, 396, 20, -438, 50],
+    tunnel: [296, 24, -328, 334, 8, -399, 50],
+    kaitak:  [742, 96, -86, 1052, 22, -404, 54],
+    cruise: [866, 62, -142, 980, 14, -255, 54],
+    sportspark: [950, 150, -328, 1062, 20, -524, 52],
+    top:     [0, 2500, 2, 0, 0, -180, 42],
+    aerial:  [-520, 1150, 620, 100, 0, -280, 48],
+    mongkok: [-40, 40, -700, 30, 40, -844, 52]
+  };
+  var c = CAMS[view] || CAMS.wkcd;
+  cam(c[0], c[1], c[2], c[3], c[4], c[5], c[6], view === 'top');
+
+  var frames = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    HK.Buildings.update(0.016, { night: night ? 1 : 0, horizonColor: new THREE.Color(night ? 0x1a2c40 : 0xa9c0cc) });
+    renderer.render(scene, camera);
+    if (++frames === 4) {
+      var mat = HK.Buildings.createMaterial();
+      window.__CITY__ = world.city; window.__WORLD__ = world;
+      window.__INFO__ = {
+        view: view, night: night,
+        count: info.count,
+        landmarkQuads: info.quads,
+        landmarkBoxes: info.boxes,
+        landmarkColliders: info.colliders,
+        signs: info.signs,
+        beacons: info.beacons,
+        buildLandmarksMs: Math.round(t3 - t2),
+        buildTerrainMs: Math.round(t1 - t0),
+        buildCityMs: Math.round(t2 - t1),
+        totalCityQuads: world.city.stats.quads,
+        totalColliders: world.city.colliders.length,
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles
+      };
+      window.__READY__ = true;
+    }
+  }
+  animate();
+  window.addEventListener('resize', function () {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+  window.addEventListener('error', function (e) { console.error('[kl-qa error]', e.message); });
+})();
+</script>
+</body></html>

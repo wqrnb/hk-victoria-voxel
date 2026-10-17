@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>City Stats</title>
+<style>body{background:#111;color:#9fe;font:14px monospace;padding:20px}</style></head>
+<body>
+<pre id="log">building...</pre>
+<script src="../vendor/three.min.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/terrain.js"></script>
+<script src="../js/landmarkkit.js"></script>
+<script src="../js/buildings.js"></script>
+<script>
+(async function () {
+  var out = [];
+  function log(x) { out.push(typeof x === 'string' ? x : JSON.stringify(x)); document.getElementById('log').textContent = out.join('\n'); }
+  var origLog = console.log;
+  console.log = function () { var a = Array.prototype.slice.call(arguments); if (a[0] === '%cHK') a.shift(); origLog.apply(console, a); log('HK: ' + a.join(' ')); };
+  console.error = function () { var a = Array.prototype.slice.call(arguments); origLog.apply(console, a); log('ERR: ' + a.join(' ')); };
+
+  var t0 = performance.now();
+  var world = await HK.Terrain.build(HK.Layout, {}, function () {});
+  var t1 = performance.now(); log('terrain ms=' + Math.round(t1 - t0) + ' quads=' + world.quads + ' walls=' + world.wallQuads + ' verts=' + world.vertices);
+  var t2 = performance.now();
+  var city = HK.Buildings.build(world, HK.Layout);
+  var t3 = performance.now(); log('buildings ms=' + Math.round(t3 - t2) + ' placed=' + HK.Buildings.stats.placed + ' attempts=' + HK.Buildings.stats.attempts + ' quads=' + city.stats.quads + ' colliders=' + city.colliders.length + ' frontage=' + city.frontage.length);
+  var t4 = performance.now();
+  var mat = HK.Buildings.createMaterial();
+  var group = HK.Buildings.finalize(world);
+  var t5 = performance.now(); log('finalize ms=' + Math.round(t5 - t4) + ' chunks=' + group.children.length);
+  var tris = 0, verts = 0, meshes = 0;
+  group.traverse(function (o) { if (o.isMesh) { tris += o.geometry.index.count / 3; verts += o.geometry.attributes.position.count; meshes++; } });
+  log('city tris=' + Math.round(tris) + ' verts=' + verts + ' meshes=' + meshes);
+  // bounds of buildings
+  var minY = 1e9, maxY = -1e9; city.frontage.forEach(function (b) { if (b.top > maxY) maxY = b.top; if (b.base < minY) minY = b.base; });
+  log('maxBuildingTop=' + maxY + ' base min=' + minY);
+  log('DONE total ms=' + Math.round(performance.now() - t0));
+  window.__READY__ = true;
+  window.__INFO__ = out;
+})();
+</script>
+</body></html>

@@ -1,0 +1,10 @@
+[
+  { "id": "r-hero-low-1600", "url": "dist/VictoriaHarbour.html?qa=1&quality=low&time=18.55&weather=clear", "out": "tmp/qa/r-hero-low-1600.png", "w": 1600, "h": 900, "timeout": 480000 },
+  { "id": "r-hero-med-1600", "url": "dist/VictoriaHarbour.html?qa=1&quality=medium&time=18.55&weather=clear", "out": "tmp/qa/r-hero-med-1600.png", "w": 1600, "h": 900, "timeout": 600000 },
+  { "id": "r-hero-high-1600", "url": "dist/VictoriaHarbour.html?qa=1&quality=high&time=18.55&weather=clear", "out": "tmp/qa/r-hero-high-1600.png", "w": 1600, "h": 900, "timeout": 900000 },
+  { "id": "r-cam-shore", "url": "dist/VictoriaHarbour.html?qa=1&quality=low&time=12.5&cam=-60,40,200&look=-150,5,335", "out": "tmp/qa/r-cam-shore.png", "w": 1280, "h": 720, "timeout": 480000 },
+  { "id": "r-fps-avenue", "url": "dist/VictoriaHarbour.html?qa=1&quality=low&mode=fps&poi=walk-avenue&time=18.55&weather=clear", "out": "tmp/qa/r-fps-avenue.png", "w": 1280, "h": 720, "timeout": 480000 },
+  { "id": "r-intro-1600", "url": "dist/VictoriaHarbour.html", "out": "tmp/qa/r-intro-1600.png", "w": 1600, "h": 900, "timeout": 600000, "ready": "document.documentElement.dataset.phase==='intro'", "wait": 900, "shotDelay": 1200 },
+  { "id": "r-boot-final", "url": "dist/VictoriaHarbour.html?qa=1&quality=low&time=18.55&weather=clear", "out": "tmp/qa/r-boot-final.png", "w": 1280, "h": 720, "timeout": 480000,
+    "eval": "JSON.stringify({err:window.__BOOT_ERROR__||null,nan:window.__NAN_STACK__||null,info:window.__INFO__||null,protocol:location.protocol,resources:(function(){try{return performance.getEntriesByType('resource').map(function(e){return e.name}).slice(0,10)}catch(e){return null}})(),hasThree:typeof THREE!=='undefined',threeRev:typeof THREE!=='undefined'?THREE.REVISION:null,scriptSrcs:Array.prototype.map.call(document.querySelectorAll('script[src]'),function(s){return s.src}),state:(function(){var s=HK.app.state;return{mode:s.mode,quality:s.quality,time:s.timeHours,night:!!s.night}})(),parts:{post:!!HK.app.post,sky:!!HK.app.sky,water:!!HK.app.water,life:!!HK.app.life,props:!!HK.app.props,ui:!!window.HK.UI}})" }
+]

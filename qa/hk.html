@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>HK Island Landmarks QA</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#0a1016}canvas{display:block}</style></head>
+<body>
+<script src="../vendor/three.min.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/terrain.js"></script>
+<script src="../js/landmarkkit.js"></script>
+<script src="../js/buildings.js"></script>
+<script src="../js/landmarks-hk.js"></script>
+<script>
+(async function () {
+  var params = HK.Util.urlParams();
+  var scene = new THREE.Scene();
+  var night = params.night === '1';
+  scene.background = new THREE.Color(night ? 0x081019 : 0xa9c0cc);
+  scene.fog = new THREE.FogExp2(night ? 0x081019 : 0xa9c0cc, 0.00013);
+  var camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.5, 16000);
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(1);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(night ? 0x22334a : 0xb4cad8, night ? 0x090b0e : 0x403a32, night ? 0.7 : 1.0));
+  var sun = new THREE.DirectionalLight(night ? 0x8fa8d0 : 0xffe0b2, night ? 0.45 : 3.1);
+  sun.position.set(-1100, night ? 900 : 650, -800);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera; sc.left = -2000; sc.right = 2000; sc.top = 1400; sc.bottom = -1400; sc.near = 100; sc.far = 6000;
+  scene.add(sun); scene.add(sun.target);
+  var water = new THREE.Mesh(new THREE.PlaneGeometry(12000, 8000), new THREE.MeshStandardMaterial({ color: night ? 0x0c2226 : 0x29555a, roughness: 0.25, metalness: 0.35 }));
+  water.rotation.x = -Math.PI / 2; water.position.y = 0; scene.add(water);
+
+  var t0 = performance.now();
+  var world = await HK.Terrain.build(HK.Layout, {}, function () {});
+  scene.add(world.group);
+  HK.Buildings.build(world, HK.Layout);
+  HK.LandmarksHK.build(world, HK.Layout);
+  var group = HK.Buildings.finalize(world);
+  scene.add(group);
+  HK.Buildings.update(0, { night: night ? 1 : 0, horizonColor: new THREE.Color(night ? 0x16283c : 0xa9c0cc) });
+  var t1 = performance.now();
+
+  var view = params.view || 'central';
+  var gPeak = world.heightAt(-282, 688); if (gPeak < 0) gPeak = 240;
+  if (view === 'peak') {
+    camera.position.set(-282, gPeak + 60, 710);
+    camera.lookAt(-160, 60, 300);
+  } else if (view === 'hkcec') {
+    camera.position.set(60, 60, -110);
+    camera.lookAt(250, 26, 330);
+  } else if (view === 'close') {
+    camera.position.set(-120, 7, 306);
+    camera.lookAt(-300, 70, 352);
+  } else if (view === 'west') {
+    camera.position.set(-900, 120, 60);
+    camera.lookAt(-300, 70, 400);
+  } else if (view === 'hero') {
+    camera.position.set(30, 22, -344);
+    camera.lookAt(-120, 82, 392);
+  } else if (view === 'hero2') {
+    camera.position.set(-60, 150, -700);
+    camera.lookAt(-150, 70, 380);
+  } else if (view === 'top') {
+    camera.position.set(-200, 700, 0.1); camera.up.set(0, 0, -1); camera.lookAt(-200, 0, 300);
+  } else {
+    camera.position.set(-90, 95, 30);
+    camera.lookAt(-190, 78, 430);
+  }
+
+  var frames = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+    if (++frames === 3) {
+      window.__INFO__ = {
+        buildMs: Math.round(t1 - t0),
+        buildings: HK.Buildings.stats.placed,
+        quads: world.city.stats.quads,
+        colliders: world.city.colliders.length,
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles
+      };
+      window.__READY__ = true;
+    }
+  }
+  animate();
+  window.addEventListener('resize', function () {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+})();
+</script>
+</body></html>

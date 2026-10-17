@@ -1,0 +1,34 @@
+[
+  {
+    "id": "triage-med-orbit",
+    "url": "index.html?qa=1&quality=medium&time=18.55&weather=clear",
+    "out": "tmp/qa/triage-med-orbit.png",
+    "w": 1280, "h": 720, "timeout": 480000
+  },
+  {
+    "id": "triage-high-orbit",
+    "url": "index.html?qa=1&quality=high&time=18.55&weather=clear",
+    "out": "tmp/qa/triage-high-orbit.png",
+    "w": 1280, "h": 720, "timeout": 480000
+  },
+  {
+    "id": "triage-fps-avenue",
+    "url": "index.html?qa=1&quality=low&mode=fps&poi=walk-avenue&time=18.55&weather=clear",
+    "out": "tmp/qa/triage-fps-avenue.png",
+    "w": 1280, "h": 720, "timeout": 300000
+  },
+  {
+    "id": "triage-cine-0",
+    "url": "index.html?qa=1&quality=low&mode=cinematic&shot=0&time=6.2&weather=clear",
+    "out": "tmp/qa/triage-cine-0.png",
+    "w": 1280, "h": 720, "timeout": 300000
+  },
+  {
+    "id": "triage-intro-normal",
+    "url": "index.html",
+    "out": "tmp/qa/triage-intro-normal.png",
+    "w": 1600, "h": 900, "timeout": 600000, "wait": 2500,
+    "ready": "!!(window.HK&&HK.app&&HK.app.world&&document.documentElement.dataset.phase)",
+    "eval": "JSON.stringify({err:window.__BOOT_ERROR__||null,ready:!!window.__READY__,data:Object.assign({},document.documentElement.dataset),intro:!!document.querySelector('#hk-intro'),introVisible:(function(){var e=document.querySelector('#hk-intro');if(!e)return null;var s=getComputedStyle(e);return {display:s.display,opacity:s.opacity,visibility:s.visibility,classes:e.className};})(),loader:(function(){var e=document.querySelector('#hk-loader');if(!e)return null;var s=getComputedStyle(e);return {display:s.display,opacity:s.opacity,classes:e.className};})(),buttons:(function(){try{return Array.from(document.querySelectorAll('#hk-intro button')).map(function(b){return b.textContent.trim().slice(0,40)})}catch(e){return []}})(),state:(function(){var s=HK.app.state;return {mode:s.mode,started:s.started,quality:s.quality,time:s.timeHours,fps:s.fps}})(),parts:{post:!!HK.app.post,sky:!!HK.app.sky,water:!!HK.app.water,life:!!HK.app.life,controls:!!HK.app.controls,ui:!!window.HK.UI},canvas:(function(){var c=document.querySelector('#hk-stage canvas');return c?{w:c.width,h:c.height}:null})()})"
+  }
+]
