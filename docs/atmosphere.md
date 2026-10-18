@@ -142,6 +142,8 @@ HK.Sky.env                     // last created env (same object as sky.env)
 
 ## 3. `HK.Water` — `js/water.js`
 
+`HK.Water.version` is **2.0.0** (DeepSeek Flash). Same public API as v1, plus optional `addWake`.
+
 ```js
 var water = HK.Water.create({ scene, renderer, quality });
 water.update(dt, state, focus, env);      // focus: camera Vector3 / {x,z} / {position}

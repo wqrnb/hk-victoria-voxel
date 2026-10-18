@@ -91,6 +91,10 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
 - **Atmosphere**: dynamic sun/moon path, procedural clouds & stars, humid haze, rain,
   shore foam, sun glitter, neon water reflections, ACES filmic grading, bloom, grain,
   vignette and subtle chromatic aberration.
+- **Water v2.0.0** (DeepSeek Flash): jade-teal harbour body, broken sun glitter and
+  moon sparkle, night neon streaks from a procedural skyline, shore foam, rain chop
+  and mist flattening. Public API is unchanged (`create` / `update` / `setShoreMask` /
+  `setQuality` / `dispose`, plus optional `addWake`). `HK.Water.version` is `2.0.0`.
 
 ---
 
@@ -141,7 +145,7 @@ js/landmarks-hk.js          hand-built Hong Kong Island landmarks
 js/landmarks-kl.js          hand-built Kowloon landmarks
 js/props.js                 lamps, trees, neon atlas, billboards, Peak Tram, street props
 js/sky.js                   sky dome, sun/moon, stars, clouds, fog, rain, shadows
-js/water.js                 Victoria Harbour water shader
+js/water.js                 Victoria Harbour water shader (DeepSeek Flash v2.0.0)
 js/post.js                  bloom + ACES + cinematic grade
 js/life.js                  traffic, trams, ferries, boats, people, birds, light show
 js/controls.js              orbit / first-person collision / cinematic cameras

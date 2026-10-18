@@ -11,7 +11,7 @@
   'use strict';
   var HK = window.HK = window.HK || {};
 
-  HK.VERSION = '1.3.0';
+  HK.VERSION = '1.4.0';
   HK.VOX = 2;                     // metres per unit; 0.5 unit = 1 m detail on high/cinema
   HK.WORLD = { minX: -1500, maxX: 1500, minZ: -1000, maxZ: 1000, sea: 0, maxY: 320 };
   HK.SEA = 0;

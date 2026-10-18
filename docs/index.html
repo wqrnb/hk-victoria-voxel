@@ -2891,7 +2891,7 @@ kbd {
   'use strict';
   var HK = window.HK = window.HK || {};
 
-  HK.VERSION = '1.3.0';
+  HK.VERSION = '1.4.0';
   HK.VOX = 2;                     // metres per unit; 0.5 unit = 1 m detail on high/cinema
   HK.WORLD = { minX: -1500, maxX: 1500, minZ: -1000, maxZ: 1000, sea: 0, maxY: 320 };
   HK.SEA = 0;
@@ -11488,26 +11488,31 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
 <script>
 /* ==== js/water.js ==== */
 /* ============================================================================
- * HK VOXEL HARBOUR — WATER                                 (owner: skyward)
+ * HK VOXEL HARBOUR — WATER  (v2.0.0)                    (owner: skyward)
  * ----------------------------------------------------------------------------
  * One large animated harbour plane (y = 0) with:
  *   - animated tiling-wave normals (procedural normal map, no external assets)
  *   - fresnel analytic sky reflection matching HK.Sky colours
- *   - sun / moon glitter paths, broken-sparkle highlight
+ *   - a wide golden sun path plus broken diamond sparkle, moon glitter
  *   - jade-teal harbour body colour, depth graded through the shore mask
  *   - night: broken vertical neon streaks inferred from a procedural skyline
- *     light field (no real reflections required)
- *   - shore foam from an optional shore mask, rain ripples, mist flattening
+ *     light field (stable R0 reflection direction, no SSR / no scene probes)
+ *   - shore foam from an optional shore mask, rain ripples and heavy-rain chop,
+ *     mist flattening, lightning washes and FogExp2 fade
+ *   - optional cheap wakes (4 slots) for ferries / boats
  *
  * Colour space: all colours passed through env are LINEAR; this shader writes
- * linear HDR radiance and lets HK.Post tone-map. Textures generated here are
- * procedural and stored as linear data (no sRGB encoding).
+ * linear HDR radiance and lets HK.Post tone-map. Procedural textures are data
+ * and are stored with THREE.LinearEncoding (no sRGB, no external images).
  *
  * Public API (docs/INTERFACES.md):
  *   var water = HK.Water.create({ scene, renderer, quality });
  *   water.update(dt, state, focus, env);
- *   water.setShoreMask(canvasOrTexture, { minX, maxX, minZ, maxZ });
- *   water.setQuality(q); water.uniforms; water.mesh; water.dispose();
+ *   water.setShoreMask(canvasOrTexture, { minX, maxX, minZ, maxZ }, opts);
+ *   water.setQuality(q); water.uniforms; water.mesh; water.addWake(...);
+ *   water.dispose();
+ *   HK.Water.makeNormalTexture(size) / makeNoiseTexture(size, seed) /
+ *   makeSkylineTexture(w, seed) / version
  * ==========================================================================*/
 (function () {
   'use strict';
@@ -11521,12 +11526,19 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     return new T.Color(Math.pow(c[0], GAMMA), Math.pow(c[1], GAMMA), Math.pow(c[2], GAMMA));
   }
 
+  function safeDispose(obj) {
+    if (obj && obj.dispose) {
+      try { obj.dispose(); } catch (e) { /* already gone */ }
+    }
+  }
+
   /* ==========================================================================
    * Procedural textures
    * ========================================================================*/
 
   /** Tiling water normal map from a sum of integer-frequency waves. */
   function makeNormalTexture(size) {
+    size = size || 256;
     var canvas = U.makeCanvas(size, size);
     var ctx = canvas.getContext('2d');
     var img = ctx.createImageData(size, size);
@@ -11596,6 +11608,8 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
 
   /** Tiling fractal noise used for foam breakup / sparkle / neon shatter. */
   function makeNoiseTexture(size, seed) {
+    size = size || 256;
+    seed = seed == null ? 29 : seed;
     var canvas = U.makeCanvas(size, size);
     var ctx = canvas.getContext('2d');
     var img = ctx.createImageData(size, size);
@@ -11650,7 +11664,7 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     var ctx = canvas.getContext('2d');
     var img = ctx.createImageData(w, hgt);
     var data = img.data;
-    var rng = new HK.Rng(seed || 0x5C17);
+    var rng = new HK.Rng(seed == null ? 0x5C17 : seed);
     function gauss1(u, c, s) {
       var d = Math.abs(u - c);
       if (d > 0.5) d = 1 - d;
@@ -11734,15 +11748,16 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     'precision highp float;',
     'varying vec3 vWorld;',
     'uniform sampler2D uNormalTex, uNoiseTex, uSkylineTex, uMaskTex;',
+    'uniform sampler2D uFoamTex;',
     'uniform vec3 uSunDir, uMoonDir;',
     'uniform vec3 uSunColor, uMoonColor, uZenith, uHorizon, uHorizonCool, uFogColor, uCityGlow;',
     'uniform vec3 uDeep, uShallow, uFoamColor;',
     'uniform float uSunI, uMoonI, uNight, uMist, uRain, uFlash, uFogDensity, uSunWarmth;',
-    'uniform float uMaskOn, uDetail, uNeonStrength, uTime, uMaskShoreB, uMaskScale;',
-    'uniform sampler2D uFoamTex;',
-    'uniform float uFoamOn;',
+    'uniform float uMaskOn, uMaskShoreB, uMaskScale, uDetail, uNeonStrength, uTime, uFoamOn;',
     'uniform vec4 uMaskBounds;',
     'uniform vec2 uFocus, uWind;',
+    'uniform vec4 uWakes[4];',
+    'uniform float uWakeCount;',
 
     'float hash21(vec2 p) {',
     '  p = fract(p * vec2(123.34, 456.21));',
@@ -11758,9 +11773,17 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     '  float t = uTime;',
     '  float farFade = smoothstep(420.0, 2100.0, dist);',
     '  float midFade = smoothstep(1300.0, 4200.0, dist);',
+    '  vec3 sunDir = uSunDir / max(length(uSunDir), 0.0001);',
+    '  vec3 moonDir = uMoonDir / max(length(uMoonDir), 0.0001);',
 
-    // --- animated normals from a tiling wave normal map (3 scales)
+    // --- focus-centred detail (uFocus, upgraded from the unused uniform)
+    '  float focusDist = length(p - uFocus);',
+    '  float focusNear = 1.0 - smoothstep(160.0, 920.0, focusDist);',
+
+    // --- animated normals from a tiling wave normal map (fragment-only waves)
+    '  float chop = smoothstep(0.35, 1.0, uRain);',
     '  float waveStr = mix(0.78, 0.24, uMist * 0.85) * (1.0 + uRain * 0.30 - uNight * 0.12);',
+    '  waveStr *= (1.0 + 0.45 * chop);',
     '  vec2 wind = uWind;',
     '  vec2 warpUv = p * 0.0016 + vec2(t * 0.0030, -t * 0.0022);',
     '  vec2 warp = (texture2D(uNoiseTex, warpUv).rg - 0.5) * vec2(155.0, 125.0);',
@@ -11773,12 +11796,45 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     '    vec3 n3 = texture2D(uNormalTex, qp * 0.0460 + vec2(wind.y, -wind.x) * t * 0.016 + vec2(0.71, 0.43)).xyz * 2.0 - 1.0;',
     '    slope += n3.xy * 0.12 * (1.0 - midFade);',
     '  }',
-    '  slope *= waveStr * (1.0 - farFade * 0.82);',
-    // --- rain: fine choppy ripples + a second detail layer
-    '  if (uRain > 0.01) {',
+    // --- fourth tap: high-frequency chop concentrated around the focus point
+    '  if (uDetail > 2.5) {',
+    '    vec3 n4 = texture2D(uNormalTex, qp * 0.1100 + wind * t * 0.024 + vec2(0.13, 0.77)).xyz * 2.0 - 1.0;',
+    '    slope += n4.xy * 0.10 * focusNear * (1.0 - farFade);',
+    '  }',
+    // --- storm chop: heavy rain grows mid-frequency slopes, mist still calms
+    '  if (chop > 0.01 && uDetail > 1.5) {',
+    '    vec3 nc = texture2D(uNormalTex, pw * 0.0900 + wind * t * 0.012 + vec2(0.57, 0.21)).xyz * 2.0 - 1.0;',
+    '    slope += nc.xy * 0.22 * chop * (1.0 - farFade);',
+    '  }',
+    // --- rain: fine choppy ripples (low quality only wakes up in real rain)
+    '  if (uRain > 0.01 && (uDetail > 1.5 || uRain > 0.2)) {',
     '    vec3 nr = texture2D(uNormalTex, pw * 0.34 + vec2(0.0, t * 0.55)).xyz * 2.0 - 1.0;',
     '    slope += nr.xy * 0.16 * uRain * (1.0 - farFade);',
     '  }',
+    // --- cheap wakes: elongated gaussian streak plus a bow-wave slope
+    '  float wakeFoam = 0.0;',
+    '  if (uWakeCount > 0.5 && uDetail > 1.5) {',
+    '    for (int wi = 0; wi < 4; wi++) {',
+    '      if (float(wi) < uWakeCount) {',
+    '        vec4 wake = uWakes[0];',
+    '        if (wi == 1) wake = uWakes[1];',
+    '        else if (wi == 2) wake = uWakes[2];',
+    '        else if (wi == 3) wake = uWakes[3];',
+    '        vec2 wd = p - wake.xy;',
+    '        vec2 fwd = vec2(cos(wake.z), sin(wake.z));',
+    '        vec2 lat = vec2(-fwd.y, fwd.x);',
+    '        float along = dot(wd, fwd);',
+    '        float across = dot(wd, lat);',
+    '        float wg = exp(-(along * along) / 648.0) * exp(-(across * across) / 32.0);',
+    '        wg *= clamp(wake.w, 0.0, 2.0);',
+    '        if (wg > 0.0005) {',
+    '          slope += lat * (along / 18.0) * wg * 0.35;',
+    '          wakeFoam += wg * (1.0 - farFade) * 0.85;',
+    '        }',
+    '      }',
+    '    }',
+    '  }',
+    '  slope *= waveStr * (1.0 - farFade * 0.82);',
     '  vec3 Nraw = normalize(vec3(-slope.x, 1.0, -slope.y));',
     '  vec3 N = Nraw;',
     '  N = normalize(mix(N, vec3(0.0, 1.0, 0.0), clamp(farFade * 1.7, 0.0, 0.95)));',
@@ -11787,7 +11843,7 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     '  float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);',
     '  fres = clamp(fres * (1.0 + uRain * 0.20), 0.0, 1.0);',
 
-    // --- shore mask
+    // --- shore mask: R = land, G/B = offshore distance (0 at shoreline)
     '  float shallow = 0.18;',
     '  float shoreG = 1.0;',
     '  float land = 0.0;',
@@ -11795,25 +11851,39 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     '    vec2 mwarp = (texture2D(uNoiseTex, p * 0.0105 + vec2(t * 0.002, -t * 0.0015)).rg - 0.5) * 0.006;',
     '    vec2 muv = (p - uMaskBounds.xy) * uMaskBounds.zw + mwarp;',
     '    if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {',
-    // Multi-tap blurred land mask: gives a smooth shoreline factor with no 8-bit
-    // distance-band contouring (the old G/B distance channels could band into
-    // "painted lane" stripes along the coast).
-    '      float l0 = texture2D(uMaskTex, muv).r;',
-    '      float l1 = texture2D(uMaskTex, muv + vec2(0.0045, 0.0)).r;',
-    '      float l2 = texture2D(uMaskTex, muv - vec2(0.0045, 0.0)).r;',
-    '      float l3 = texture2D(uMaskTex, muv + vec2(0.0, 0.0045)).r;',
-    '      float l4 = texture2D(uMaskTex, muv - vec2(0.0, 0.0045)).r;',
-    '      float l5 = texture2D(uMaskTex, muv + vec2(0.014, 0.008)).r;',
-    '      float l6 = texture2D(uMaskTex, muv + vec2(-0.014, -0.008)).r;',
-    '      float l7 = texture2D(uMaskTex, muv + vec2(0.014, -0.008)).r;',
-    '      float l8 = texture2D(uMaskTex, muv + vec2(-0.014, 0.008)).r;',
-    '      float landAvg = (l0 + l1 + l2 + l3 + l4) * 0.2;',
-    '      float farAvg = (l5 + l6 + l7 + l8) * 0.25;',
+    // Multi-tap blurred land mask: smooth shoreline without 8-bit contouring.
+    // One tap at low quality; 5 taps at medium; all 9 taps at high/cinematic.
+    '      vec4 ms = texture2D(uMaskTex, muv);',
+    '      float l0 = ms.r;',
+    '      float landAvg = l0;',
+    '      float farAvg = l0;',
+    '      if (uDetail > 1.5) {',
+    '        float l1 = texture2D(uMaskTex, muv + vec2(0.0045, 0.0)).r;',
+    '        float l2 = texture2D(uMaskTex, muv - vec2(0.0045, 0.0)).r;',
+    '        float l3 = texture2D(uMaskTex, muv + vec2(0.0, 0.0045)).r;',
+    '        float l4 = texture2D(uMaskTex, muv - vec2(0.0, 0.0045)).r;',
+    '        landAvg = (l0 + l1 + l2 + l3 + l4) * 0.2;',
+    '        farAvg = landAvg;',
+    '        if (uDetail > 2.5) {',
+    '          float l5 = texture2D(uMaskTex, muv + vec2(0.014, 0.008)).r;',
+    '          float l6 = texture2D(uMaskTex, muv + vec2(-0.014, -0.008)).r;',
+    '          float l7 = texture2D(uMaskTex, muv + vec2(0.014, -0.008)).r;',
+    '          float l8 = texture2D(uMaskTex, muv + vec2(-0.014, 0.008)).r;',
+    '          farAvg = (l5 + l6 + l7 + l8) * 0.25;',
+    '        }',
+    '      }',
+    // distCh is the offshore distance stored in G, or in B for terrain masks.
+    // Small distance means near the shore, so invert it for the shallow term.
+    '      float distCh = mix(ms.g, ms.b, step(0.5, uMaskShoreB));',
+    '      float shoreDist = clamp(distCh * uMaskScale, 0.0, 1.0);',
+    '      float shoreProx = 1.0 - shoreDist;',
     '      land = l0;',
     '      float shoreSmooth = clamp((1.0 - landAvg) * landAvg * 5.0, 0.0, 1.0);',
     '      shoreG = 1.0 - shoreSmooth;',
     '      float shoreNess = clamp(landAvg * 1.35 + farAvg * 0.85, 0.0, 1.0);',
-    '      shallow = clamp(shoreNess * 1.55 - 0.10 + (texture2D(uNoiseTex, p * 0.021 + vec2(t * 0.004)).g - 0.5) * 0.26, 0.0, 1.0);',
+    '      float shoreTap = clamp(shoreNess * 1.55 - 0.10, 0.0, 1.0);',
+    '      float maskNoise = (texture2D(uNoiseTex, p * 0.021 + vec2(t * 0.004, -t * 0.002)).g - 0.5) * 0.26;',
+    '      shallow = clamp(shoreTap * 0.55 + shoreProx * 0.70 + maskNoise, 0.0, 1.0);',
     '    }',
     '  }',
     '  shallow *= (1.0 - uNight * 0.35);',
@@ -11822,17 +11892,17 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     '  vec3 R = reflect(-V, N);',
     '  float upR = clamp(R.y, 0.0, 1.0);',
     '  vec3 hdir = normalize(vec3(R.x, 0.0, R.z) + vec3(0.0001, 0.0, 0.0001));',
-    '  vec3 sdirXZ = normalize(vec3(uSunDir.x, 0.0, uSunDir.z) + vec3(0.0001, 0.0, 0.0001));',
+    '  vec3 sdirXZ = normalize(vec3(sunDir.x, 0.0, sunDir.z) + vec3(0.0001, 0.0, 0.0001));',
     '  float warmR = pow(max(dot(hdir, sdirXZ), 0.0), 2.6) * uSunWarmth;',
     '  vec3 horizonC = mix(uHorizonCool, uHorizon, clamp(warmR, 0.0, 1.0));',
     '  vec3 sky = mix(horizonC, uZenith, pow(upR, 0.55));',
     '  float hzR = 1.0 - smoothstep(0.0, 0.35, upR);',
     '  sky = mix(sky, horizonC, hzR * 0.25);',
     '  sky = mix(uFogColor, sky, smoothstep(-0.06, 0.045, R.y));',
-    '  float sunR = max(dot(R, uSunDir), 0.0);',
+    '  float sunR = max(dot(R, sunDir), 0.0);',
     '  sky += uSunColor * (pow(sunR, 18.0) * 0.30 + pow(sunR, 220.0) * 1.4) * uSunI * 0.16;',
-    '  float moonR = max(dot(R, uMoonDir), 0.0);',
-    '  sky += uMoonColor * (pow(moonR, 80.0) * 0.8 + pow(moonR, 700.0) * 3.2) * uNight;',
+    '  float moonR = max(dot(R, moonDir), 0.0);',
+    '  sky += uMoonColor * (pow(moonR, 80.0) * 0.8 + pow(moonR, 700.0) * 3.2) * max(uMoonI, 0.15 * uNight);',
 
     // --- water body colour
     '  vec3 body = mix(uDeep, uShallow, shallow * 0.72 + 0.10);',
@@ -11842,17 +11912,19 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     // --- compose
     '  vec3 col = mix(body, sky, fres);',
 
-    // --- sun glitter (sharp broken sparkle path)
+    // --- sun glitter: sharp broken sparkle path over a wide golden road
     '  float sparkA = texture2D(uNoiseTex, p * 0.145 + vec2(t * 0.020, -t * 0.014)).r;',
     '  float sparkB = texture2D(uNoiseTex, p * 0.31 - vec2(t * 0.031, t * 0.023)).g;',
-    '  float sparkle = smoothstep(0.60, 0.98, sparkA * 0.58 + sparkB * 0.62);',
-    '  float sunRg = max(dot(Rg, uSunDir), 0.0);',
+    '  float sparkFloor = uDetail > 3.5 ? 0.55 : 0.60;',
+    '  float sparkle = smoothstep(sparkFloor, 0.98, sparkA * 0.58 + sparkB * 0.62);',
+    '  float sunRg = max(dot(Rg, sunDir), 0.0);',
     '  float glint = pow(sunRg, 90.0);',
-    '  float moonRg = max(dot(Rg, uMoonDir), 0.0);',
+    '  float moonRg = max(dot(Rg, moonDir), 0.0);',
     '  float moonGlint = pow(moonRg, 480.0);',
-    '  col += uSunColor * uSunI * glint * (0.05 + sparkle * 0.55) * (1.0 - midFade * 0.80) * (1.0 - uMist * 0.7 - uRain * 0.35);',
-    '  col += uSunColor * uSunI * (pow(sunRg, 4.0) * 0.075 + pow(sunRg, 2.0) * 0.028) * (1.0 - uMist * 0.6);',
-    '  col += uMoonColor * moonGlint * (0.08 + sparkle * 0.30) * 0.50 * uNight * (1.0 - midFade * 0.75);',
+    '  float wideWarm = mix(1.0, 1.35, clamp(uSunWarmth, 0.0, 1.0));',
+    '  col += uSunColor * uSunI * glint * (0.05 + sparkle * 0.55) * (1.0 - midFade * 0.80) * clamp(1.0 - uMist * 0.7 - uRain * 0.35, 0.0, 1.0);',
+    '  col += uSunColor * uSunI * (pow(sunRg, 4.0) * 0.075 + pow(sunRg, 2.0) * 0.028) * wideWarm * clamp(1.0 - uMist * 0.6 - uRain * 0.18, 0.0, 1.0);',
+    '  col += uMoonColor * moonGlint * (0.08 + sparkle * 0.30) * 0.50 * uNight * mix(uMoonI, 1.0, 0.35) * (1.0 - midFade * 0.75);',
 
     // --- night neon reflection streaks (procedural skyline light field)
     '  if (uNight > 0.01) {',
@@ -11866,15 +11938,20 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     '    vec2 rxz = normalize(R0.xz + vec2(0.0001));',
     '    float shoreDir = smoothstep(0.04, 0.62, abs(rxz.y));',
     '    float wob = texture2D(uNoiseTex, vec2(u * 5.0 + t * 0.004, p.x * 0.0045 + p.y * 0.0045 + t * 0.012)).r;',
-    '    float wob2 = texture2D(uNoiseTex, vec2(u * 14.0, p.x * 0.016 + p.y * 0.013 - t * 0.02)).r;',
+    '    float wob2 = wob * 0.55;',
+    '    if (uDetail > 1.5) {',
+    '      wob2 = texture2D(uNoiseTex, vec2(u * 14.0, p.x * 0.016 + p.y * 0.013 - t * 0.02)).r;',
+    '    }',
     '    float breakup = smoothstep(0.24, 0.68, wob * 0.72 + wob2 * 0.28 + 0.20);',
     '    breakup = mix(0.82, breakup, clamp(1.0 - farFade * 1.15, 0.0, 1.0));',
     '    vec3 neon = lights * band * shoreDir * breakup * uNight * uNeonStrength;',
+    '    if (uDetail > 3.5) neon *= 1.12;',
     '    col += neon * (0.32 + fres * 1.55) + neon * 0.10;',
     '    col += uCityGlow * band * shoreDir * uNight * 0.16;',
     '  }',
 
-    // --- shore foam
+    // --- shore foam (mask + domain warp, optional foam lace)
+    '  float foam = 0.0;',
     '  if (uMaskOn > 0.5) {',
     '    float shoreBand = smoothstep(0.15, 0.008, shoreG) * (1.0 - land);',
     '    if (shoreBand > 0.001) {',
@@ -11884,16 +11961,26 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     '      float fn2 = texture2D(uNoiseTex, (p + fw) * 0.173 + vec2(-t * 0.020, t * 0.012)).g;',
     '      float patchN = texture2D(uNoiseTex, p * 0.0039 + vec2(t * 0.002, t * 0.0012)).g;',
     '      float speck = smoothstep(0.50, 0.82, fn * 0.55 + fn2 * 0.55 + patchN * 0.22);',
-    '      if (uFoamOn > 0.5) {',
+    '      if (uFoamOn > 0.5 && uDetail > 1.5) {',
     '        float lace = texture2D(uFoamTex, p * 0.020 + vec2(t * 0.004, -t * 0.003)).r;',
     '        float lace2 = texture2D(uFoamTex, p * 0.011 + vec2(-t * 0.002, t * 0.0025)).r;',
     '        speck = max(speck, smoothstep(0.28, 0.62, lace * 0.62 + lace2 * 0.5) * (1.0 - farFade));',
     '      }',
-    '      float foam = speck * shoreBand * shoreBand;',
+    '      foam = speck * shoreBand * shoreBand;',
     '      vec3 fc = uFoamColor * (0.42 + 0.30 * (1.0 - uNight));',
     '      col = mix(col, fc, clamp(foam, 0.0, 0.42));',
     '    }',
     '  }',
+    // --- wake foam, also capped to the same soft white-water limit
+    '  if (wakeFoam > 0.001) {',
+    '    float wtex = texture2D(uNoiseTex, p * 0.110 + vec2(t * 0.018, -t * 0.012)).r;',
+    '    float wf = clamp(wakeFoam * (0.35 + smoothstep(0.38, 0.72, wtex) * 0.65), 0.0, 1.0);',
+    '    vec3 wfc = uFoamColor * (0.42 + 0.30 * (1.0 - uNight));',
+    '    col = mix(col, wfc, clamp(wf, 0.0, 0.42));',
+    '    foam = max(foam, wf);',
+    '  }',
+    // --- foam sparkle: tiny salt highlights riding the foam
+    '  col += uFoamColor * foam * sparkle * (0.12 + 0.20 * (1.0 - uNight)) * (1.0 - midFade);',
 
     // --- mist films the surface, rain darkens it
     '  col = mix(col, uFogColor, uMist * 0.16 * smoothstep(300.0, 2600.0, dist));',
@@ -11915,23 +12002,47 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
   /* ==========================================================================
    * Water instance
    * ========================================================================*/
+
+  var DETAIL_MAP = { low: 1, medium: 2, high: 3, cinematic: 4, ultra: 4 };
+
+  function canonicalQuality(q) {
+    if (q === 'ultra') return 'cinematic';
+    return DETAIL_MAP[q] != null ? q : 'high';
+  }
+
   function Water(opts) {
     opts = opts || {};
     this.scene = opts.scene;
     this.renderer = opts.renderer;
-    this.quality = HK.QUALITY[opts.quality] ? opts.quality : 'high';
+    this.quality = canonicalQuality(opts.quality);
     this._elapsed = 0;
+    this._wakes = [];
+    this._baseSunI = 2.7;
     this._maskTex = null;
     this._ownsMask = false;
+    this._dummyMaskTex = null;
+    this._foamTex = null;
+    this._ownsFoamTex = false;
 
     var maxAniso = 4;
-    try { if (this.renderer) maxAniso = this.renderer.capabilities.getMaxAnisotropy(); } catch (e) {}
+    try { if (this.renderer) maxAniso = this.renderer.capabilities.getMaxAnisotropy(); } catch (e) { maxAniso = 4; }
+    maxAniso = Math.max(1, maxAniso || 4);
 
     this.normalTex = makeNormalTexture(256);
     this.normalTex.anisotropy = maxAniso;
     this.noiseTex = makeNoiseTexture(256, 29);
     this.noiseTex.anisotropy = maxAniso;
     this.skylineTex = makeSkylineTexture(1024, 0x5C17);
+    this._dummyMaskTex = makeSkylineTexture(4, 1);
+
+    var foamAtlas = HK.Textures && HK.Textures.foam;
+    if (foamAtlas) {
+      this._foamTex = foamAtlas;
+      this._ownsFoamTex = false;
+    } else {
+      this._foamTex = makeNoiseTexture(4, 1);
+      this._ownsFoamTex = true;
+    }
 
     var fallbackSun = linHex('#ffab5e');
     var fallbackHorizon = linHex('#ffb470');
@@ -11941,9 +12052,9 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
       uNormalTex: { value: this.normalTex },
       uNoiseTex: { value: this.noiseTex },
       uSkylineTex: { value: this.skylineTex },
-      uMaskTex: { value: makeSkylineTexture(4, 1) }, // replaced only when a mask is set
-      uFoamTex: { value: (HK.Textures && HK.Textures.foam) ? HK.Textures.foam : makeNoiseTexture(4, 1) },
-      uFoamOn: { value: (HK.Textures && HK.Textures.foam) ? 1 : 0 },
+      uMaskTex: { value: this._dummyMaskTex },
+      uFoamTex: { value: this._foamTex },
+      uFoamOn: { value: foamAtlas ? 1 : 0 },
       uMaskOn: { value: 0 },
       uMaskShoreB: { value: 0 },
       uMaskScale: { value: 1 },
@@ -11968,11 +12079,13 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
       uRain: { value: 0.0 },
       uFlash: { value: 0.0 },
       uFogDensity: { value: 0.00022 },
-      uDetail: { value: 2 },
+      uDetail: { value: 3 },
       uNeonStrength: { value: 1.0 },
       uTime: { value: 0 },
       uFocus: { value: new T.Vector2(0, 0) },
-      uWind: { value: new T.Vector2(0.25, 0.10) }
+      uWind: { value: new T.Vector2(0.25, 0.10) },
+      uWakes: { value: [new T.Vector4(), new T.Vector4(), new T.Vector4(), new T.Vector4()] },
+      uWakeCount: { value: 0 }
     };
 
     this.material = new T.ShaderMaterial({
@@ -11995,33 +12108,42 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
   }
 
   Water.prototype.setQuality = function (q) {
-    if (!HK.QUALITY[q]) q = 'high';
-    this.quality = q;
-    var detailMap = { low: 1, medium: 2, high: 3, ultra: 3 };
-    this.uniforms.uDetail.value = detailMap[q] || 2;
+    var name = canonicalQuality(q);
+    this.quality = name;
+    if (this.uniforms && this.uniforms.uDetail) {
+      this.uniforms.uDetail.value = DETAIL_MAP[name];
+    }
+    return this;
   };
 
   /**
    * mask: canvas / Image / Texture.  R channel = land (1) / water (0).
-   *       G channel = shore distance, 0 at the shoreline, rising to >=1 at ~60
-   *       world units offshore.
+   *       G channel = offshore distance (0 at shoreline, >=1 by ~60 units),
+   *       or B channel for terrain masks that store distance there.
    * bounds: { minX, maxX, minZ, maxZ } world-space rectangle covered by mask.
+   * opts: { shoreChannel: 'g'|'b', shoreScale: number }
    */
   Water.prototype.setShoreMask = function (mask, bounds, opts) {
-    if (this._ownsMask && this._maskTex && this._maskTex !== this.uniforms.uMaskTex.value) {
-      this._maskTex.dispose();
+    if (this._ownsMask && this._maskTex) {
+      safeDispose(this._maskTex);
     }
+    this._maskTex = null;
     this._ownsMask = false;
+
     if (!mask) {
       this.uniforms.uMaskOn.value = 0;
-      this._maskTex = null;
-      return;
+      this.uniforms.uMaskShoreB.value = 0;
+      this.uniforms.uMaskScale.value = 1;
+      if (this._dummyMaskTex) this.uniforms.uMaskTex.value = this._dummyMaskTex;
+      return this;
     }
+
     opts = opts || {};
     var shoreChannel = opts.shoreChannel || null;   // 'g' (default contract) or 'b' (terrain.js layout)
     var shoreScale = opts.shoreScale != null ? opts.shoreScale : null;
-    // Auto-detect the mask convention from a 2-D canvas: some layout generators store
-    // the offshore distance in B (0 at shore -> 1 far) and shore proximity in G.
+
+    // Auto-detect the mask convention from a 2-D canvas: some layout generators
+    // store offshore distance in B (0 at shore -> 1 far) and shore proximity in G.
     if (!shoreChannel && mask && mask.getContext && mask.width > 4) {
       try {
         var ctx = mask.getContext('2d');
@@ -12047,6 +12169,7 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     if (shoreScale == null) shoreScale = 1.0;
     this.uniforms.uMaskShoreB.value = shoreChannel === 'b' ? 1 : 0;
     this.uniforms.uMaskScale.value = shoreScale;
+
     var tex;
     if (mask.isTexture) {
       tex = mask;
@@ -12065,13 +12188,16 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     }
     this.uniforms.uMaskTex.value = tex;
     this.uniforms.uMaskOn.value = 1;
-    if (bounds) {
-      var minX = bounds.minX != null ? bounds.minX : -1500;
-      var maxX = bounds.maxX != null ? bounds.maxX : 1500;
-      var minZ = bounds.minZ != null ? bounds.minZ : -1000;
-      var maxZ = bounds.maxZ != null ? bounds.maxZ : 1000;
-      this.uniforms.uMaskBounds.value.set(minX, minZ, 1 / Math.max(1e-6, maxX - minX), 1 / Math.max(1e-6, maxZ - minZ));
-    }
+
+    var b = bounds || {};
+    var minX = b.minX != null ? b.minX : -1500;
+    var maxX = b.maxX != null ? b.maxX : 1500;
+    var minZ = b.minZ != null ? b.minZ : -1000;
+    var maxZ = b.maxZ != null ? b.maxZ : 1000;
+    var dx = Math.max(1e-6, maxX - minX);
+    var dz = Math.max(1e-6, maxZ - minZ);
+    this.uniforms.uMaskBounds.value.set(minX, minZ, 1 / dx, 1 / dz);
+    return this;
   };
 
   Water.prototype._focusXZ = function (focus) {
@@ -12086,6 +12212,61 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     return [fx, fz];
   };
 
+  Water.prototype._packWakes = function () {
+    var u = this.uniforms;
+    if (!u || !u.uWakes) return;
+    var arr = u.uWakes.value;
+    for (var i = 0; i < 4; i++) {
+      if (i < this._wakes.length) {
+        var w = this._wakes[i];
+        arr[i].set(w.x, w.z, w.heading, w.strength);
+      } else {
+        arr[i].set(0, 0, 0, 0);
+      }
+    }
+    u.uWakeCount.value = this._wakes.length;
+  };
+
+  /**
+   * Cheap boat wake.  Accepts addWake(x, z, dirX, dirZ, strength) or a single
+   * object { x, z, dirX, dirZ, heading, strength, life }.
+   * Four slots; a fifth wake replaces the weakest live slot.
+   */
+  Water.prototype.addWake = function (x, z, dirX, dirZ, strength) {
+    var heading = 0;
+    if (x && typeof x === 'object') {
+      var o = x;
+      x = o.x != null ? o.x : 0;
+      z = o.z != null ? o.z : 0;
+      if (o.heading != null) {
+        heading = o.heading;
+      } else if (o.dirX != null || o.dirZ != null) {
+        heading = Math.atan2(o.dirZ || 0, o.dirX != null ? o.dirX : 1);
+      }
+      strength = o.strength != null ? o.strength : (o.life != null ? o.life : 1);
+    } else {
+      x = x || 0;
+      z = z || 0;
+      heading = Math.atan2(dirZ || 0, dirX || 0);
+      if (strength == null) strength = 1;
+    }
+    strength = Number(strength);
+    if (!isFinite(strength) || strength <= 0) return this;
+
+    var wake = { x: x, z: z, heading: heading, strength: strength };
+    if (this._wakes.length < 4) {
+      this._wakes.push(wake);
+    } else {
+      var weakest = 0;
+      for (var i = 1; i < 4; i++) {
+        if (this._wakes[i].strength < this._wakes[weakest].strength) weakest = i;
+      }
+      this._wakes[weakest] = wake;
+    }
+    this._packWakes();
+    return this;
+  };
+
   Water.prototype.update = function (dt, state, focus, env) {
     dt = U.clamp(dt || 0.016, 0, 0.1);
     this._elapsed += dt;
@@ -12094,7 +12275,6 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
 
     var f = this._focusXZ(focus);
     u.uFocus.value.set(f[0], f[1]);
-    u.uWind.value.set(0.25 + (env && env.rain ? env.rain * 0.35 : 0), 0.10);
 
     if (env) {
       if (env.sunDir) u.uSunDir.value.copy(env.sunDir);
@@ -12110,7 +12290,10 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
       if (env.waterDeep) u.uDeep.value.copy(env.waterDeep);
       if (env.waterShallow) u.uShallow.value.copy(env.waterShallow);
       if (env.foamColor) u.uFoamColor.value.copy(env.foamColor);
-      if (env.sunIntensity != null) u.uSunI.value = env.sunIntensity;
+      if (env.sunIntensity != null) {
+        u.uSunI.value = env.sunIntensity;
+        this._baseSunI = env.sunIntensity;
+      }
       if (env.moonIntensity != null) u.uMoonI.value = env.moonIntensity;
       if (env.night != null) u.uNight.value = env.night;
       if (env.mist != null) u.uMist.value = env.mist;
@@ -12119,24 +12302,40 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
       else u.uRain.value = env.weather === 'rain' ? 1 : 0;
       if (env.flash != null) u.uFlash.value = env.flash;
       if (env.fogDensity != null) u.uFogDensity.value = env.fogDensity;
-      u.uNeonStrength.value = 0.9 + u.uNight.value * 1.7;
     }
-    if (state && state.photo) {
-      // cleaner photo look: slightly stronger glitter, fewer ripples handled by Post
-      u.uNeonStrength.value *= 1.0;
+
+    // Keep photo-mode glitter 8 percent hotter without compounding frames.
+    u.uSunI.value = this._baseSunI * ((state && state.photo) ? 1.08 : 1.0);
+    u.uNeonStrength.value = 0.9 + u.uNight.value * 1.7;
+    u.uWind.value.set(0.25 + u.uRain.value * 0.35, 0.10);
+
+    // Age wakes deterministically and repack the four uniform slots.
+    for (var i = this._wakes.length - 1; i >= 0; i--) {
+      var w = this._wakes[i];
+      w.strength *= Math.exp(-dt * 0.45);
+      if (w.strength < 0.02) this._wakes.splice(i, 1);
     }
+    this._packWakes();
     return u;
   };
 
   Water.prototype.dispose = function () {
-    if (this.scene && this.mesh.parent) this.scene.remove(this.mesh);
-    if (this.mesh) this.mesh.geometry.dispose();
-    if (this.material) this.material.dispose();
-    if (this.normalTex) this.normalTex.dispose();
-    if (this.noiseTex) this.noiseTex.dispose();
-    if (this.skylineTex) this.skylineTex.dispose();
-    if (this._ownsMask && this._maskTex) this._maskTex.dispose();
-    if (this.uniforms.uMaskTex.value && this.uniforms.uMaskTex.value !== this._maskTex) this.uniforms.uMaskTex.value.dispose();
+    if (this.scene && this.mesh && this.mesh.parent) this.scene.remove(this.mesh);
+    safeDispose(this.mesh && this.mesh.geometry);
+    safeDispose(this.material);
+    safeDispose(this.normalTex);
+    safeDispose(this.noiseTex);
+    safeDispose(this.skylineTex);
+    if (this._ownsMask) safeDispose(this._maskTex);
+    safeDispose(this._dummyMaskTex);
+    if (this._ownsFoamTex) safeDispose(this._foamTex);
+    this._maskTex = null;
+    this._dummyMaskTex = null;
+    this._foamTex = null;
+    this._wakes = [];
+    this.normalTex = null;
+    this.noiseTex = null;
+    this.skylineTex = null;
   };
 
   HK.Water = {
@@ -12144,7 +12343,7 @@ void facadeShade(vec3 baseCol, vec2 uv, float styleRaw, float seed, float glow, 
     makeNormalTexture: makeNormalTexture,
     makeNoiseTexture: makeNoiseTexture,
     makeSkylineTexture: makeSkylineTexture,
-    version: '1.1.0'
+    version: '2.0.0'
   };
 })();
 
