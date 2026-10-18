@@ -2,14 +2,17 @@
  * HK VOXEL HARBOUR — CORE
  * Shared namespace, math, noise, palettes, geometry batching, quality config.
  * Units: 1 world unit = 1 voxel = 2 metres.  Sea level = y 0.
+ * High and cinema snap footprint lips and fins to 0.5 unit (1 metre).
+ * A true 1 m terrain grid would be four times the cells across the 8 km map
+ * and drops the desktop frame rate, so the base lattice stays 2 m.
  * +X = east, -Z = north (Kowloon), +Z = south (Hong Kong Island).
  * ==========================================================================*/
 (function () {
   'use strict';
   var HK = window.HK = window.HK || {};
 
-  HK.VERSION = '1.2.0';
-  HK.VOX = 2;                     // metres per unit
+  HK.VERSION = '1.3.0';
+  HK.VOX = 2;                     // metres per unit; 0.5 unit = 1 m detail on high/cinema
   HK.WORLD = { minX: -1500, maxX: 1500, minZ: -1000, maxZ: 1000, sea: 0, maxY: 320 };
   HK.SEA = 0;
   HK.CAMERA_FAR = 16000;
@@ -24,8 +27,8 @@
        footStep 0.5 snaps skyline massing to 1 m on high / cinema. */
     low:    { name: '低',   pixelRatio: 1.0,  msaa: 0, bloomScale: 0.5, bloomMips: 4, shadowMap: 1024, shadows: true,  trees: 3800,  traffic: 110, people: 120, aa: false, grain: false, waterSeg: 0,  cloudDetail: 2, cityStep: 1.16, facadeScale: 1.05, pilasters: 0, waterfront: 0, footprints: 0, footMin: 80, footStep: 1 },
     medium: { name: '中',   pixelRatio: 1.35, msaa: 2, bloomScale: 0.5, bloomMips: 5, shadowMap: 2048, shadows: true,  trees: 8000,  traffic: 220, people: 260, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 3, cityStep: 1.0,  facadeScale: 0.96, pilasters: 0, waterfront: 1, footprints: 1, footMin: 40, footStep: 1 },
-    high:   { name: '高',   pixelRatio: 1.75, msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 14000, traffic: 340, people: 400, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 4, cityStep: 0.88, facadeScale: 0.92, pilasters: 1, waterfront: 1, footprints: 1, footMin: 6,  footStep: 0.5 },
-    ultra:  { name: '電影', pixelRatio: 2.0,  msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 20000, traffic: 460, people: 560, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 5, cityStep: 0.8,  facadeScale: 1.0,  pilasters: 1, waterfront: 1, footprints: 1, footMin: 5,  footStep: 0.5 }
+    high:   { name: '高',   pixelRatio: 1.75, msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 14000, traffic: 340, people: 400, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 4, cityStep: 0.88, facadeScale: 0.92, pilasters: 1, waterfront: 1, footprints: 1, footMin: 3,  footStep: 0.5 },
+    ultra:  { name: '電影', pixelRatio: 2.0,  msaa: 4, bloomScale: 0.5, bloomMips: 6, shadowMap: 4096, shadows: true,  trees: 20000, traffic: 460, people: 560, aa: true,  grain: true,  waterSeg: 0,  cloudDetail: 5, cityStep: 0.8,  facadeScale: 1.0,  pilasters: 1, waterfront: 1, footprints: 1, footMin: 3,  footStep: 0.5 }
   };
 
   HK.DEFAULT_STATE = {

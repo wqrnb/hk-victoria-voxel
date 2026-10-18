@@ -67,7 +67,7 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
 - **Geography**: real Victoria Harbour topology — Kowloon / Tsim Sha Tsui / Hung Hom Bay /
   Kai Tak runway spur / Kwun Tong on the north; Central / Admiralty / Wan Chai /
   Causeway Bay typhoon shelter / Quarry Bay / Victoria Peak and the southern ridges on the south.
-- **Real blocks**: about 1,400 OpenStreetMap building footprints
+- **Real blocks**: about 5,000 OpenStreetMap building footprints
   (Central, Admiralty, Wan Chai, Causeway Bay, Tsim Sha Tsui, West Kowloon,
   Hung Hom) are extruded on the high and cinema tiers, so the shore is the
   real plan rather than random slabs. Hand-authored icons keep their own
@@ -104,9 +104,12 @@ Kowloon culture and the night harbour. `N` next shot, `←/→` prev/next, `Esc`
   `assets/facade-night.png` (emissive windows). Vertex colour still tints the
   material, so brick stays brick and glass stays glass. If an atlas is missing
   the original procedural windows remain.
-- **Scale**: 1 world unit = 2 m. High and cinema snap footprint massing,
-  floor belts and harbour fins to 0.5 unit (1 m). Lower tiers keep a coarser
-  street grid and, on low, skip the footprint pass.
+- **Scale**: 1 world unit = 2 m. High and cinema snap footprint lips, floor
+  belts and harbour fins to 0.5 unit, which is 1 m. The terrain lattice stays
+  at 2 m: a 1 m grid over the whole 8 km map is four times the cells and is
+  too heavy for a desktop browser. Low skips the footprint pass.
+- **Play on the web**: https://wqrnb.github.io/hk-victoria-voxel/ serves
+  `docs/index.html`, which is the rebuilt single-file `dist/VictoriaHarbour.html`.
 - **Footprints**: `python3 tools/fetch-footprints.py` reads OpenStreetMap
   (ODbL) through the public map API, fits each shore onto this map, and
   writes `js/footprints.js`. Heights use the OSM `height` / `building:levels`

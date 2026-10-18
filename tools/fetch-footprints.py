@@ -21,41 +21,47 @@ OUT = os.path.join(ROOT, 'js', 'footprints.js')
 CACHE = os.path.join(ROOT, 'data', 'osm-tiles')
 UA = 'hk-victoria-voxel/1.2 (research voxel harbour; local educational sandbox)'
 
-# (south, west, north, east) — waterfront bands that read from the ferry
+# (south, west, north, east). Shore districts only — not the whole territory.
 REGIONS = [
-    (22.2770, 114.1480, 22.2905, 114.1900),  # Central → Causeway Bay
-    (22.2905, 114.1580, 22.3065, 114.1880),  # TST → Hung Hom
-    (22.2960, 114.1480, 22.3105, 114.1660),  # West Kowloon / ICC
+    (22.2755, 114.1420, 22.2915, 114.2220),  # Sheung Wan → Quarry Bay
+    (22.2900, 114.1580, 22.3200, 114.1920),  # TST, Jordan, Yau Ma Tei, Hung Hom
+    (22.2940, 114.1420, 22.3240, 114.1700),  # West Kowloon / ICC
+    (22.3000, 114.1880, 22.3300, 114.2220),  # Kai Tak spur
 ]
 STEP = 0.004
 
-# name fragments → model anchor (x, z). Used only to fit the projection.
+# Anchors are the CURRENT model sites of the hand-authored icons (layout.js).
+# hk / kl are the harbour core. hke / kle extend the fit to Quarry Bay and Kai Tak
+# without letting that stretch pull Central off its sites.
 ANCHORS = [
-    (['two international finance', '國際金融中心二期'], -318, 352),
-    (['one international finance', '國際金融中心一期'], -252, 404),
-    (['bank of china tower', '中銀大廈'], -28, 408),
-    (['cheung kong center', 'cheung kong centre', '長江集團中心'], -62, 468),
-    (['jardine house', '怡和大廈'], -222, 442),
-    (['the center', '中環中心'], -92, 512),
-    (['hsbc main', '滙豐總行大廈', '滙豐銀行總行'], -120, 424),
-    (['international commerce centre', '環球貿易廣場'], -962, -424),
-    (['convention and exhibition centre', '香港會議展覽中心'], 246, 322),
-    (['central plaza', '中環廣場'], 300, 392),
-    (['hopewell centre', '合和中心'], 322, 452),
-    (['the peninsula', '半島酒店'], -286, -386),
-    (['lippo centre', '力寶中心'], 70, 455),
-    (['pacific place', '太古廣場'], 52, 505),
-    (['exchange square', '交易廣場'], -190, 430),
-    (['clock tower', '前九廣鐵路鐘樓', '尖沙咀鐘樓'], -182, -336),
-    (['harbour city', '海港城'], -424, -356),
-    (['hong kong cultural centre', '香港文化中心'], -132, -356),
-    (['1881 heritage', '前水警總部'], -198, -352),
-    (['k11 musea'], 130, -356),
+    (['two international finance', '國際金融中心二期'], -204, 404, 'hk'),
+    (['one international finance', '國際金融中心一期'], -252, 404, 'hk'),
+    (['bank of china tower', '中銀大廈'], -28, 408, 'hk'),
+    (['cheung kong center', 'cheung kong centre', '長江集團中心'], -68, 431, 'hk'),
+    (['jardine house', '怡和大廈'], -222, 442, 'hk'),
+    (['the center', '中環中心'], -318, 424, 'hk'),
+    (['hsbc main', '滙豐總行大廈', '滙豐銀行總行'], -120, 424, 'hk'),
+    (['exchange square', '交易廣場'], -190, 430, 'hk'),
+    (['lippo centre', '力寶中心'], 70, 455, 'hk'),
+    (['pacific place', '太古廣場'], 52, 505, 'hk'),
+    (['convention and exhibition centre', '香港會議展覽中心'], 246, 322, 'hk'),
+    (['central plaza', '中環廣場'], 300, 392, 'hke'),
+    (['hopewell centre', '合和中心'], 322, 452, 'hke'),
+    (['times square', '時代廣場'], 760, 500, 'hke'),
+    (['one island east', '港島東中心'], 1092, 418, 'hke'),
+    (['international commerce centre', '環球貿易廣場'], -962, -424, 'kl'),
+    (['clock tower', '前九廣鐵路鐘樓', '尖沙咀鐘樓'], -182, -336, 'kl'),
+    (['harbour city', '海港城'], -424, -356, 'kl'),
+    (['hong kong cultural centre', '香港文化中心'], -132, -356, 'kl'),
+    (['1881 heritage', '前水警總部'], -198, -352, 'kl'),
+    (['the peninsula', '半島酒店'], -286, -386, 'kl'),
+    (['k11 musea'], 130, -356, 'kle'),
+    (['hong kong coliseum', '香港體育館'], 396, -438, 'kle'),
+    (['the whampoa', '黃埔號'], 520, -392, 'kle'),
+    (['kai tak cruise', '啟德郵輪碼頭'], 980, -255, 'kle'),
 ]
 
-# Hand-authored spots that do not follow the real plan. They are relocated
-# onto the fitted map instead of being used as control points.
-EXCLUDE_ANCHOR = ('the center', '中環中心')
+EXCLUDE_ANCHOR = ()
 
 # Roof heights in metres for named towers OSM often leaves untagged.
 # Landmarks already modelled by hand are skipped when they overlap a reservation;
@@ -354,32 +360,40 @@ def main():
     # because the model stretches West Kowloon much further west than the island.
     bad_name = ('停車場', 'car park', 'parking', '車場')
     pairs = []
-    for frags, ax, az in ANCHORS:
+    for frags, ax, az, zone in ANCHORS:
         if any(f in frags for f in EXCLUDE_ANCHOR):
             continue
         cands = []
         for b in kept:
             if b['part'] or not b['name']:
                 continue
-            raw = b['name']
-            low = raw.lower()
-            if any(s in raw or s in low for s in bad_name):
+            rawn = b['name']
+            low = rawn.lower()
+            if any(s in rawn or s in low for s in bad_name):
                 continue
-            if not any((f in low) or (f in raw) for f in frags):
+            if not any((f in low) or (f in rawn) for f in frags):
                 continue
             area = (b['maxlat'] - b['minlat']) * (b['maxlon'] - b['minlon'])
             cands.append(((b['h'] or 0) * 10 + area * 1e6, b, area))
         if not cands:
-            print('  missing anchor', frags[0])
+            print('  missing anchor', zone, frags[0])
             continue
         cands.sort(key=lambda t: -t[0])
         b = cands[0][1]
-        pairs.append((b['lon'], b['lat'], ax, az, b['name'], az >= 0))
+        pairs.append((b['lon'], b['lat'], ax, az, b['name'], zone))
     print('anchors', len(pairs))
-    for lon, lat, ax, az, name, island in pairs:
-        print('  %-32s lon %.5f lat %.5f -> %d,%d %s' % (name[:32], lon, lat, ax, az, 'HK' if island else 'KL'))
-    island_pairs = [p for p in pairs if p[5]]
-    kowloon_pairs = [p for p in pairs if not p[5]]
+    for lon, lat, ax, az, name, zone in pairs:
+        print('  %-32s lon %.5f lat %.5f -> %d,%d %s' % (name[:32], lon, lat, ax, az, zone))
+    by_zone = {}
+    for p in pairs:
+        by_zone.setdefault(p[5], []).append(p)
+    # Central Plaza anchors the join between the island core and the east.
+    if 'hke' in by_zone:
+        by_zone.setdefault('hk', []).append(by_zone['hke'][0])
+    if 'kle' in by_zone:
+        by_zone.setdefault('kl', []).append(by_zone['kle'][0])
+    island_pairs = by_zone.get('hk', [])
+    kowloon_pairs = by_zone.get('kl', [])
     if len(island_pairs) < 4:
         raise SystemExit('not enough island anchors')
 
@@ -417,6 +431,27 @@ def main():
         x, z = project(p[0], p[1], cx_k, cz_k)
         print('  KL %-22s dx %6.1f dz %6.1f' % (p[4][:22], x - p[2], z - p[3]))
 
+    def fit_zone(key, fallback):
+        group = by_zone.get(key, [])
+        if len(group) >= 3:
+            if len(group) >= 4:
+                cx, cz, inn = refit(group, 90)
+            else:
+                cx, cz = fit_affine([(p[0], p[1], p[2], p[3]) for p in group])
+                inn = group
+            print(key, 'affine', [round(v, 1) for v in cx])
+            for p in group:
+                x, z = project(p[0], p[1], cx, cz)
+                print('  %s %-20s dx %6.1f dz %6.1f' % (key, p[4][:20], x - p[2], z - p[3]))
+            return cx, cz, inn
+        print(key, 'fallback')
+        return fallback
+
+    cx_e, cz_e, in_e = fit_zone('hke', (cx_i, cz_i, in_i))
+    cx_ke, cz_ke, in_ke = fit_zone('kle', (cx_k, cz_k, in_k))
+    split_hk = by_zone['hke'][0][0] if by_zone.get('hke') else 114.18
+    split_kl = by_zone['kle'][0][0] if by_zone.get('kle') else 114.18
+
     # where the excluded icons actually fall, so the hand models can move
     print('relocate:')
     for b in kept:
@@ -439,15 +474,36 @@ def main():
 
     sx_i, sz_i = scale_of(cx_i, cz_i)
     sx_k, sz_k = scale_of(cx_k, cz_k)
+    sx_e, sz_e = scale_of(cx_e, cz_e)
+    sx_ke, sz_ke = scale_of(cx_ke, cz_ke)
     print('island units/m  east %.4f north %.4f' % (sx_i, sz_i))
+    print('east-hk units/m east %.4f north %.4f' % (sx_e, sz_e))
     print('kowloon units/m east %.4f north %.4f' % (sx_k, sz_k))
+    print('east-kl units/m east %.4f north %.4f' % (sx_ke, sz_ke))
+
+    def zone_of(lon, lat):
+        if lat < 22.2905:
+            core, east, split = (cx_i, cz_i, in_i, sx_i, sz_i), (cx_e, cz_e, in_e, sx_e, sz_e), split_hk
+        else:
+            core, east, split = (cx_k, cz_k, in_k, sx_k, sz_k), (cx_ke, cz_ke, in_ke, sx_ke, sz_ke), split_kl
+        if lon <= split + 0.003:
+            return core, 1.0
+        if lon >= split + 0.012:
+            return east, 0.0
+        t = (lon - (split + 0.003)) / 0.009
+        return (core, east, t)
 
     def place_xz(lon, lat):
-        if lat < 22.2905:
-            cx, cz, inliers = cx_i, cz_i, in_i
+        picked = zone_of(lon, lat)
+        if len(picked) == 3:
+            core, east, t = picked
+            x0, z0 = project(lon, lat, core[0], core[1])
+            x1, z1 = project(lon, lat, east[0], east[1])
+            cx, cz, inliers = core[0], core[1], core[2]
+            x, z = x0 * (1 - t) + x1 * t, z0 * (1 - t) + z1 * t
         else:
-            cx, cz, inliers = cx_k, cz_k, in_k
-        x, z = project(lon, lat, cx, cz)
+            cx, cz, inliers = picked[0][0], picked[0][1], picked[0][2]
+            x, z = project(lon, lat, cx, cz)
         numx = numz = den = 0.0
         for p in inliers:
             d2 = ((lon - p[0]) * m_lon) ** 2 + ((lat - p[1]) * m_lat) ** 2
@@ -486,12 +542,17 @@ def main():
             continue
         w_m = (b['maxlon'] - b['minlon']) * m_lon
         d_m = (b['maxlat'] - b['minlat']) * m_lat
-        if w_m < 8 or d_m < 8 or w_m > 280 or d_m > 280:
+        if w_m < 6 or d_m < 6 or w_m > 280 or d_m > 280:
             continue
         x, z = place_xz(b['lon'], b['lat'])
         if x < -1900 or x > 1900 or z < -980 or z > 980:
             continue
-        sx, sz = (sx_i, sz_i) if b['lat'] < 22.2905 else (sx_k, sz_k)
+        picked_s = zone_of(b['lon'], b['lat'])
+        if len(picked_s) == 3:
+            sx = picked_s[0][3] * (1 - picked_s[2]) + picked_s[1][3] * picked_s[2]
+            sz = picked_s[0][4] * (1 - picked_s[2]) + picked_s[1][4] * picked_s[2]
+        else:
+            sx, sz = picked_s[0][3], picked_s[0][4]
         # map metres through the fitted scale, but never a needle and never
         # fatter than the true 2 m per unit the landmarks are drawn at
         w = w_m * sx
@@ -500,13 +561,13 @@ def main():
         true_d = d_m * 0.5
         w = min(true_w, max(w, true_w * 0.62))
         d = min(true_d, max(d, true_d * 0.62))
-        w = max(2.5, min(36.0, w))
-        d = max(2.5, min(36.0, d))
+        w = max(2.0, min(36.0, w))
+        d = max(2.0, min(36.0, d))
         # snap to 1 m (0.5 unit)
         w = round(w * 2) / 2
         d = round(d * 2) / 2
         h_m = estimate_h(b, x, z)
-        h = max(4.0, min(250.0, h_m * 0.5))
+        h = max(3.0, min(250.0, h_m * 0.5))
         h = round(h * 2) / 2
         x = round(x * 2) / 2
         z = round(z * 2) / 2

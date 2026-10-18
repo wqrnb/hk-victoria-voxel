@@ -157,7 +157,7 @@
     LAND_OK[T.SIDEWALK] = 1; LAND_OK[T.PLAZA] = 1; LAND_OK[T.PROMENADE] = 1;
     LAND_OK[T.PARK] = 1; LAND_OK[T.LAWN] = 1; LAND_OK[T.TERRACE] = 1;
     function measuredOK(x0, z0, w, d) {
-      if (w < 2.5 || d < 2.5) return false;
+      if (w < 2 || d < 2) return false;
       if (x0 < MINX + 2 || z0 < MINZ + 2 || x0 + w > maxX - 2 || z0 + d > maxZ - 2) return false;
       var lo = 999, hi = -1, step = (w * d > 140) ? 2 : 1;
       for (var z = z0; z <= z0 + d; z += step) {
@@ -206,6 +206,11 @@
       var K = new HK.Kit(city, { style: style, color: colorRgb, seed: seed, glow: 1 });
       var plinthTop = hi + 0.15;
       K.boxC(x, z, w + 0.2, d + 0.2, Math.min(lo, hi) - 1.1, plinthTop, { color: '#7d786f', style: F.PURE, collide: true, jitter: 0.02 });
+      if (Hh < 16) {
+        K.boxC(x, z, w, d, plinthTop, plinthTop + Hh, { color: colorRgb, style: style, seed: seed, collide: true });
+        city.frontage.push({ x: x, z: z, w: w, d: d, base: plinthTop, top: plinthTop + Hh, district: dist.id, neon: dist.neon, seed: seed, style: style, h: Hh });
+        return;
+      }
       var y = plinthTop;
       var cw = w, cd = d;
       if (Hh > 28) {
@@ -221,7 +226,7 @@
         var frac = s === cuts - 1 ? 1 : (s === 0 ? 0.62 : 0.24);
         var seg = s === cuts - 1 ? Math.max(2, (plinthTop + Hh) - y) : remain * frac;
         K.boxC(x, z, cw, cd, y, y + seg, { color: colorRgb, style: style, seed: seed + s, collide: true });
-        if (fine && seg > 8) {
+        if (fine && Hh > 24 && seg > 8) {
           var belt = y + 6;
           var topSeg = y + seg - 0.4;
           while (belt < topSeg) {
@@ -240,7 +245,7 @@
         y += 1.6;
       }
       if (Hh > 48 && rng.chance(0.45)) K.roofClutter(x, z, Math.max(3, cw - 1), Math.max(3, cd - 1), y, seed + 9);
-      if (doPil && fine && Hh > 16 && Math.min(w, d) >= 6) {
+      if (doPil && fine && Hh > 28 && Math.min(w, d) >= 6) {
         var shoreZ = z > 0 ? L.southShoreZ(x) : L.northShoreZ(x);
         if (Math.abs(z - shoreZ) < 90) {
           var face = z > 0 ? -1 : 1;
@@ -255,6 +260,21 @@
       city.frontage.push({ x: x, z: z, w: w, d: d, base: plinthTop, top: plinthTop + Hh, district: dist.id, neon: dist.neon, seed: seed, style: style, h: Hh });
       if (dist.neon > 0.35 && Hh > 10) city.signs.push({ x: x, z: z, w: w, d: d, base: plinthTop, top: plinthTop + Hh, district: dist.id, seed: seed, neon: dist.neon });
     }
+    function fitMeasured(x, z, w, d) {
+      function okAt(xx, zz, ww, dd) {
+        return ww >= 2 && dd >= 2 && measuredOK(xx - ww / 2, zz - dd / 2, ww, dd);
+      }
+      if (okAt(x, z, w, d)) return [x, z, w, d];
+      var inland = z > 0 ? 1 : -1;
+      for (var s = 1; s <= 3; s++) {
+        var ww = Math.max(2, Math.round((w - s * 0.5) * 2) / 2);
+        var dd = Math.max(2, Math.round((d - s * 0.5) * 2) / 2);
+        if (okAt(x, z + inland * s * 2, ww, dd)) return [x, z + inland * s * 2, ww, dd];
+        if (okAt(x, z, ww, dd)) return [x, z, ww, dd];
+      }
+      return null;
+    }
+    var OSM_SHORE = { central: 1, admiralty: 1, wanchai: 1, causeway: 1, northpoint: 1, quarrybay: 1, sheungwan: 1, tst: 1, jordan: 1, westkowloon: 1, hunghom: 1, kaitak: 1, tokwawan: 1 };
     function placeFootprints() {
       var fp = HK.FOOTPRINTS;
       if (!fp || !fp.b || !qcfg.footprints) return 0;
@@ -266,9 +286,10 @@
         var x = data[i], z = data[i + 1], w = data[i + 2], d = data[i + 3], h = data[i + 4];
         if (h < minH) { skipped++; continue; }
         if (coveredByLandmark(x, z, h)) { skipped++; continue; }
-        var x0 = x - w / 2, z0 = z - d / 2;
-        if (!measuredOK(x0, z0, w, d)) { skipped++; continue; }
-        markOcc(x0, z0, w, d);
+        var fit = fitMeasured(x, z, w, d);
+        if (!fit) { skipped++; continue; }
+        x = fit[0]; z = fit[1]; w = fit[2]; d = fit[3];
+        markOcc(x - w / 2, z - d / 2, w, d);
         var dist = districtAt(x, z) || (z > 0 ? genericHK : genericKL);
         var seed = ((Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663)) >>> 0;
         makeMeasured(x, z, w, d, minBox.v, maxBox.v, dist, new HK.Rng(seed || 1), h);
@@ -440,6 +461,7 @@
           if (t !== T.PLOT && !(allowTerrace && t === T.TERRACE)) continue;
           if (flagArr[n] & RESERVED) continue;
           if (occ[n]) continue;
+          if (qcfg.footprints && OSM_SHORE[dist.id] && !rng.chance(0.28)) continue;
           if (!rng.chance(0.9 * dist.density)) continue;
           attempts++;
           var w = Math.round(rng.float(dist.lot[0], dist.lot[1]) * scale);
@@ -491,7 +513,7 @@
           var t2 = typeArr[n2];
           if (t2 !== T.PLOT && t2 !== T.TERRACE) continue;
           if (occ[n2] || (flagArr[n2] & RESERVED)) continue;
-          if (!r2.chance(0.62)) continue;
+          if (!r2.chance(qcfg.footprints && OSM_SHORE[dist2.id] ? 0.34 : 0.62)) continue;
           var lw = r2.int(4, 10), ld = r2.int(4, 10);
           var x0b = Math.round(x2 - lw / 2), z0b = Math.round(z2 - ld / 2);
           if (!lowRiseOK(x0b, z0b, lw, ld, false, null, null)) continue;
